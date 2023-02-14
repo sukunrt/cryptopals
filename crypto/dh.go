@@ -93,17 +93,19 @@ func CheckPrime(n *big.Int) bool {
 	return true
 }
 
-// NewDH returns a new Diffie Hellman
-func NewDH() DH {
-	var P *big.Int
+func RandPrime() *big.Int {
 	for {
 		x := utils.RandBytes(128)
 		n := big.NewInt(0).SetBytes(x)
 		if CheckPrime(n) {
-			P = n
-			break
+			return n
 		}
 	}
+}
+
+// NewDH returns a new Diffie Hellman
+func NewDH() DH {
+	P := RandPrime()
 	G := randBigInt(big.NewInt(1000), big.NewInt(1000000))
 	A := randBigInt(big.NewInt(1), P)
 	PA := big.NewInt(0).Exp(G, A, P)
