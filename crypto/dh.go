@@ -37,71 +37,10 @@ func randBigInt(x, y *big.Int) *big.Int {
 }
 
 var (
-	zero  = big.NewInt(0)
 	two   = big.NewInt(2)
 	one   = big.NewInt(1)
 	three = big.NewInt(3)
 )
-
-// CheckPrime checks primality of n using miller-rabin test
-func CheckPrime(n *big.Int) bool {
-	if n.Cmp(one) == 0 {
-		return false
-	}
-	if n.Cmp(two) == 0 || n.Cmp(three) == 0 {
-		return true
-	}
-	a := big.NewInt(0)
-	a.Mod(n, big.NewInt(2))
-	if a.Cmp(big.NewInt(0)) == 0 {
-		return false
-	}
-
-	n1 := big.NewInt(0).Sub(n, one)
-	s, d := big.NewInt(0), copyBigInt(n1)
-	for a.Mod(d, two).Cmp(one) != 0 {
-		s.Add(s, one)
-		d.Div(d, two)
-	}
-
-	maxWitness := 1000000
-	rounds := 5
-	for i := 0; i < rounds; i++ {
-		a.Sub(n, big.NewInt(4))
-		nn := rand.Intn(maxWitness) + 2
-		if a.IsInt64() {
-			nn = rand.Intn(int(a.Int64())) + 2
-		}
-		ni := big.NewInt(int64(nn))
-		x := big.NewInt(0).Exp(ni, d, n)
-		if x.Cmp(one) == 0 || x.Cmp(n1) == 0 {
-			continue
-		}
-		witness := true
-		for j := 0; big.NewInt(int64(j)).Cmp(s) < 0; j++ {
-			x = big.NewInt(0).Mul(x, x)
-			x.Mod(x, n)
-			if x.Cmp(n1) == 0 {
-				witness = false
-				break
-			}
-		}
-		if witness {
-			return false
-		}
-	}
-	return true
-}
-
-func RandPrime() *big.Int {
-	for {
-		x := utils.RandBytes(128)
-		n := big.NewInt(0).SetBytes(x)
-		if CheckPrime(n) {
-			return n
-		}
-	}
-}
 
 // NewDH returns a new Diffie Hellman
 func NewDH() DH {
