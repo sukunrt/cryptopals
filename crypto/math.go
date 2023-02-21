@@ -9,10 +9,18 @@ import (
 
 var zero = big.NewInt(0)
 
-type bi = *big.Int
+type BInt = *big.Int
 
-func BI(x int) bi {
+func BI(x int) BInt {
 	return big.NewInt(int64(x))
+}
+
+func FromBytes(b []byte) BInt {
+	return BI(0).SetBytes(b)
+}
+
+func Clone(x BInt) BInt {
+	return BI(0).Set(x)
 }
 
 // CheckPrime checks primality of n using miller-rabin test
@@ -88,7 +96,7 @@ func RandPrimeN(numBytes int) *big.Int {
 	}
 }
 
-func gcd(a, b bi) bi {
+func gcd(a, b BInt) BInt {
 	if a.Cmp(zero) == 0 {
 		return b
 	}
@@ -115,4 +123,25 @@ func ModInv(a, n *big.Int) *big.Int {
 		x.Mod(x, n)
 	}
 	return x
+}
+
+func CRT(c, n []BInt) BInt {
+	N := BI(1)
+	for _, nn := range n {
+		N.Mul(N, nn)
+	}
+	ni := make([]BInt, len(n))
+	mi := make([]BInt, len(n))
+	for i := 0; i < len(ni); i++ {
+		ni[i] = BI(0)
+		ni[i].Div(N, n[i])
+		mi[i] = ModInv(ni[i], n[i])
+	}
+	z := BI(0)
+	for i := 0; i < len(ni); i++ {
+		zi := BI(0).Mul(mi[i], ni[i])
+		zi.Mul(zi, c[i])
+		z.Add(z, zi)
+	}
+	return BI(0).Mod(z, N)
 }

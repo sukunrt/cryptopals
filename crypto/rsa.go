@@ -2,7 +2,24 @@ package crypto
 
 type RSA struct {
 	Sz                int
-	P, Q, N, ET, E, D bi
+	P, Q, N, ET, E, D BInt
+}
+
+type RSAKey struct {
+	E, N BInt
+	Sz   int
+}
+
+func (r RSA) Encrypt(b []byte) []byte {
+	return EncryptRSA(b, r)
+}
+
+func (r RSA) Decrypt(b []byte) []byte {
+	return DecryptRSA(b, r)
+}
+
+func (r RSA) PubKey() RSAKey {
+	return RSAKey{E: r.E, N: r.N, Sz: r.Sz}
 }
 
 func NewRSAN(n int) RSA {

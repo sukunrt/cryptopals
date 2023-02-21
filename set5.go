@@ -13,6 +13,10 @@ import (
 	"github.com/sukunrt/cryptopals/utils"
 )
 
+type BInt = crypto.BInt
+
+var BI = crypto.BI
+
 func Solve5_34() {
 
 	asch := make(chan *big.Int, 10)
@@ -254,4 +258,43 @@ func Solve5_38() {
 
 	<-done
 	<-done
+}
+
+func Solve5_39() {
+	decodeByte := func(c1, c2, c3 []byte, p1, p2, p3 crypto.RSAKey) byte {
+		cs := []BInt{crypto.FromBytes(c1), crypto.FromBytes(c2), crypto.FromBytes(c3)}
+		ns := []BInt{p1.N, p2.N, p3.N}
+		m := crypto.CRT(cs, ns)
+		st, ed := BI(0), crypto.Clone(m)
+	binarySearch:
+		for ed.Cmp(BI(0).Add(st, BI(1))) > 0 {
+			mid := BI(0).Add(st, ed)
+			mid.Div(mid, BI(2))
+			x := BI(0).Mul(mid, mid)
+			x.Mul(x, mid)
+			v := x.Cmp(m)
+			switch {
+			case v == 0:
+				st = mid
+				break binarySearch
+			case v < 0:
+				st = mid
+			default:
+				ed = mid
+			}
+		}
+		return st.Bytes()[0]
+	}
+	r1, r2, r3 := crypto.NewRSAN(2), crypto.NewRSAN(2), crypto.NewRSAN(2)
+	p1, p2, p3 := r1.PubKey(), r2.PubKey(), r3.PubKey()
+	msg := []byte("here is another nice message")
+	c1, c2, c3 := r1.Encrypt(msg), r2.Encrypt(msg), r3.Encrypt(msg)
+	res := make([]byte, 0)
+	for i, j, k := 0, 0, 0; i < len(c1) && j < len(c2) && k < len(c3); i, j, k = i+p1.Sz, j+p2.Sz, k+p3.Sz {
+		res = append(
+			res,
+			decodeByte(
+				c1[i:i+p1.Sz], c2[j:j+p2.Sz], c3[k:k+p3.Sz], p1, p2, p3))
+	}
+	fmt.Println(string(res))
 }
