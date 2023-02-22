@@ -1,5 +1,9 @@
 package crypto
 
+import (
+	"github.com/sukunrt/cryptopals/utils"
+)
+
 type RSA struct {
 	Sz                int
 	P, Q, N, ET, E, D BInt
@@ -39,25 +43,40 @@ func NewRSAN(n int) RSA {
 }
 
 func EncryptRSA(b []byte, r RSA) []byte {
-	res := make([]byte, 0)
-	for i := 0; i < len(b); i++ {
-		a := BI(0).SetBytes(b[i : i+1])
-		a.Exp(a, r.E, r.N)
-		x := a.Bytes()
-		for j := 0; j < r.Sz-len(x); j++ {
-			res = append(res, 0)
-		}
-		res = append(res, x...)
+	bi := FromBytes(b)
+	if bi.Cmp(r.N) > 0 {
+		return nil
 	}
-	return res
+	return BI(0).Exp(bi, r.E, r.N).Bytes()
+
 }
 
 func DecryptRSA(b []byte, r RSA) []byte {
-	res := make([]byte, 0)
-	for i := 0; i < len(b); i += r.Sz {
-		a := BI(0).SetBytes(b[i : i+r.Sz])
-		a.Exp(a, r.D, r.N)
-		res = append(res, a.Bytes()[0])
+	bi := FromBytes(b)
+	if bi.Cmp(r.N) > 0 {
+		return nil
 	}
-	return res
+	return BI(0).Exp(bi, r.D, r.N).Bytes()
+}
+
+func UnPaddedRSAOracle(m string) string {
+	r := NewRSAN(20)
+	p := r.PubKey()
+	c := r.Encrypt([]byte(m))
+	oracle := func(b []byte) []byte {
+		return r.Decrypt(b)
+	}
+	s := utils.RandBytes(r.Sz - 1)
+	si := FromBytes(s)
+	sinv := ModInv(si, p.N)
+	se := BI(0).Exp(si, p.E, p.N)
+	cc := FromBytes(c)
+	cc.Mul(cc, se)
+	cc.Mod(cc, p.N)
+	pc := oracle(cc.Bytes())
+	pi := FromBytes(pc)
+	pi.Mul(pi, sinv)
+	pi.Mod(pi, p.N)
+	mm := pi.Bytes()
+	return string(mm)
 }

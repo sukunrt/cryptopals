@@ -31,21 +31,20 @@ func CheckPrime(n *big.Int) bool {
 	if n.Cmp(two) == 0 || n.Cmp(three) == 0 {
 		return true
 	}
-	a := big.NewInt(0)
-	a.Mod(n, big.NewInt(2))
-	if a.Cmp(big.NewInt(0)) == 0 {
+	a := BI(0).Mod(n, two)
+	if a.Cmp(BI(0)) == 0 {
 		return false
 	}
 
-	n1 := big.NewInt(0).Sub(n, one)
-	s, d := big.NewInt(0), copyBigInt(n1)
+	n1 := BI(0).Sub(n, one)
+	s, d := 0, Clone(n1)
 	for a.Mod(d, two).Cmp(one) != 0 {
-		s.Add(s, one)
+		s++
 		d.Div(d, two)
 	}
 
 	maxWitness := 1000000
-	rounds := 5
+	rounds := 3
 	for i := 0; i < rounds; i++ {
 		a.Sub(n, big.NewInt(4))
 		nn := rand.Intn(maxWitness) + 2
@@ -58,7 +57,7 @@ func CheckPrime(n *big.Int) bool {
 			continue
 		}
 		witness := true
-		for j := 0; big.NewInt(int64(j)).Cmp(s) < 0; j++ {
+		for j := 0; j < s; j++ {
 			x = big.NewInt(0).Mul(x, x)
 			x.Mod(x, n)
 			if x.Cmp(n1) == 0 {
@@ -84,15 +83,18 @@ func RandPrime() *big.Int {
 }
 
 func RandPrimeN(numBytes int) *big.Int {
+	cnt := 0
 	for {
 		b := utils.RandBytes(numBytes)
 		if b[0] == 0 {
 			continue
 		}
-		r := big.NewInt(0).SetBytes(b)
+		b[len(b)-1] = b[len(b)-1] | 1
+		r := FromBytes(b)
 		if CheckPrime(r) {
 			return r
 		}
+		cnt++
 	}
 }
 
@@ -144,4 +146,55 @@ func CRT(c, n []BInt) BInt {
 		z.Add(z, zi)
 	}
 	return BI(0).Mod(z, N)
+}
+
+var biiTwo = NBI(2)
+var biiOne = NBI(1)
+
+func MillerRabin(n BII) bool {
+	if n.IsInt64() && n.Int64() < 20 {
+		nn := int(n.Int64())
+		for i := 2; i < nn-1; i++ {
+			if nn%i == 0 {
+				return false
+			}
+		}
+		return true
+	}
+
+	if n.Mod(NBI(2)).Int64() == 0 {
+		return false
+	}
+	s, d := 0, n.Sub(NBI(1))
+	for d.Mod(biiTwo).Int64() == 0 {
+		s++
+		d = d.Div(biiTwo)
+	}
+	rounds := 3
+	mx := 1 << 60
+	if n.Sub(NBI(4)).IsInt64() && int(n.Sub(NBI(4)).Int64()) < mx {
+		mx = int(n.Sub(NBI(4)).Int64())
+	}
+	n1 := n.Sub(biiOne)
+outer:
+	for i := 0; i < rounds; i++ {
+		a := NBI(rand.Intn(mx) + 2)
+		st := Exp(a, d, n)
+		if st.Equal(biiOne) || st.Equal(n1) {
+			continue
+		}
+		for j := 0; j < s-1; j++ {
+			st = st.Mul(st).Mod(n)
+			if st.Equal(biiOne) {
+				return false
+			} else if st.Equal(n1) {
+				continue outer
+			}
+		}
+		st = st.Mul(st).Mod(n)
+		if !st.Equal(biiOne) {
+			return false
+		}
+	}
+	return true
 }

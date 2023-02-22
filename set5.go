@@ -260,8 +260,8 @@ func Solve5_38() {
 	<-done
 }
 
-func Solve5_39() {
-	decodeByte := func(c1, c2, c3 []byte, p1, p2, p3 crypto.RSAKey) byte {
+func Solve5_40(s string) string {
+	decodeBytes := func(c1, c2, c3 []byte, p1, p2, p3 crypto.RSAKey) []byte {
 		cs := []BInt{crypto.FromBytes(c1), crypto.FromBytes(c2), crypto.FromBytes(c3)}
 		ns := []BInt{p1.N, p2.N, p3.N}
 		m := crypto.CRT(cs, ns)
@@ -283,18 +283,11 @@ func Solve5_39() {
 				ed = mid
 			}
 		}
-		return st.Bytes()[0]
+		return st.Bytes()
 	}
-	r1, r2, r3 := crypto.NewRSAN(2), crypto.NewRSAN(2), crypto.NewRSAN(2)
+	r1, r2, r3 := crypto.NewRSAN(10), crypto.NewRSAN(10), crypto.NewRSAN(10)
 	p1, p2, p3 := r1.PubKey(), r2.PubKey(), r3.PubKey()
-	msg := []byte("here is another nice message")
+	msg := []byte(s)
 	c1, c2, c3 := r1.Encrypt(msg), r2.Encrypt(msg), r3.Encrypt(msg)
-	res := make([]byte, 0)
-	for i, j, k := 0, 0, 0; i < len(c1) && j < len(c2) && k < len(c3); i, j, k = i+p1.Sz, j+p2.Sz, k+p3.Sz {
-		res = append(
-			res,
-			decodeByte(
-				c1[i:i+p1.Sz], c2[j:j+p2.Sz], c3[k:k+p3.Sz], p1, p2, p3))
-	}
-	fmt.Println(string(res))
+	return string(decodeBytes(c1, c2, c3, p1, p2, p3))
 }
