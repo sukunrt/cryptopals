@@ -9,16 +9,16 @@ import (
 	"math/big"
 	"os"
 
-	bi "github.com/sukunrt/cryptopals/bigint"
+	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/crypto"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
 func Solve5_34() {
-	asch := make(chan bi.BInt, 10)
-	arch := make(chan bi.BInt, 10)
-	bsch := make(chan bi.BInt, 10)
-	brch := make(chan bi.BInt, 10)
+	asch := make(chan bi.Int, 10)
+	arch := make(chan bi.Int, 10)
+	bsch := make(chan bi.Int, 10)
+	brch := make(chan bi.Int, 10)
 	donech := make(chan string)
 	mach := make(chan []byte, 1)
 	mbch := make(chan []byte, 1)
@@ -254,8 +254,8 @@ func Solve5_38() {
 
 func Solve5_40(s string) string {
 	decodeBytes := func(c1, c2, c3 []byte, p1, p2, p3 crypto.RSAKey) []byte {
-		cs := []bi.BInt{bi.FromBytes(c1), bi.FromBytes(c2), bi.FromBytes(c3)}
-		ns := []bi.BInt{p1.N, p2.N, p3.N}
+		cs := []bi.Int{bi.FromBytes(c1), bi.FromBytes(c2), bi.FromBytes(c3)}
+		ns := []bi.Int{p1.N, p2.N, p3.N}
 		m := crypto.CRT(cs, ns)
 		st, ed := bi.Zero, bi.Copy(m)
 	binarySearch:

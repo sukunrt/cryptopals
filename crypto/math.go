@@ -3,11 +3,11 @@ package crypto
 import (
 	"math/rand"
 
-	bi "github.com/sukunrt/cryptopals/bigint"
+	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
-func RandPrime() bi.BInt {
+func RandPrime() bi.Int {
 	for {
 		x := utils.RandBytes(128)
 		n := bi.FromBytes(x)
@@ -17,7 +17,7 @@ func RandPrime() bi.BInt {
 	}
 }
 
-func RandPrimeN(numBytes int) bi.BInt {
+func RandPrimeN(numBytes int) bi.Int {
 	cnt := 0
 	for {
 		b := utils.RandBytes(numBytes)
@@ -33,14 +33,14 @@ func RandPrimeN(numBytes int) bi.BInt {
 	}
 }
 
-func gcd(a, b bi.BInt) bi.BInt {
+func gcd(a, b bi.Int) bi.Int {
 	if a.Equal(bi.Zero) {
 		return b
 	}
 	return gcd(b.Mod(a), a)
 }
 
-func egcd(a, b bi.BInt) (bi.BInt, bi.BInt) {
+func egcd(a, b bi.Int) (bi.Int, bi.Int) {
 	if a.Equal(bi.Zero) {
 		return bi.Zero, bi.One
 	} else {
@@ -51,7 +51,7 @@ func egcd(a, b bi.BInt) (bi.BInt, bi.BInt) {
 	}
 }
 
-func ModInv(a, n bi.BInt) bi.BInt {
+func ModInv(a, n bi.Int) bi.Int {
 	x, _ := egcd(a, n)
 	x = x.Mod(n)
 	for x.Cmp(bi.Zero) < 0 {
@@ -60,13 +60,13 @@ func ModInv(a, n bi.BInt) bi.BInt {
 	return x
 }
 
-func CRT(c, n []bi.BInt) bi.BInt {
+func CRT(c, n []bi.Int) bi.Int {
 	N := bi.FromInt(1)
 	for _, nn := range n {
 		N = N.Mul(nn)
 	}
-	ni := make([]bi.BInt, len(n))
-	mi := make([]bi.BInt, len(n))
+	ni := make([]bi.Int, len(n))
+	mi := make([]bi.Int, len(n))
 	for i := 0; i < len(ni); i++ {
 		ni[i] = N.Div(n[i])
 		mi[i] = ModInv(ni[i], n[i])
@@ -79,7 +79,7 @@ func CRT(c, n []bi.BInt) bi.BInt {
 	return z.Mod(N)
 }
 
-func MillerRabin(n bi.BInt) bool {
+func MillerRabin(n bi.Int) bool {
 	if n.IsInt64() && n.Int() < 20 {
 		nn := n.Int()
 		for i := 2; i < nn-1; i++ {

@@ -1,17 +1,17 @@
 package crypto
 
 import (
-	bi "github.com/sukunrt/cryptopals/bigint"
+	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
 type RSA struct {
 	Sz                int
-	P, Q, N, ET, E, D bi.BInt
+	P, Q, N, ET, E, D bi.Int
 }
 
 type RSAKey struct {
-	E, N bi.BInt
+	E, N bi.Int
 	Sz   int
 }
 

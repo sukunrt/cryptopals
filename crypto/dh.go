@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 
-	bi "github.com/sukunrt/cryptopals/bigint"
+	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
@@ -13,15 +13,15 @@ import (
 // G is the random generator for the public key
 // A is the public key
 type DH struct {
-	P  bi.BInt
-	G  bi.BInt
-	PA bi.BInt
-	A  bi.BInt
+	P  bi.Int
+	G  bi.Int
+	PA bi.Int
+	A  bi.Int
 }
 
 // randBigInt returns a random integer between x and y
-func randBigInt(x, y bi.BInt) bi.BInt {
-	return bi.RandBInt(y.Sub(x)).Add(x)
+func randBigInt(x, y bi.Int) bi.Int {
+	return bi.RandInt(y.Sub(x)).Add(x)
 }
 
 // NewDH returns a new Diffie Hellman
@@ -48,19 +48,19 @@ func NewDHBytes(n int) DH {
 }
 
 // NewDGFromPAndG gives new DH struct with P = P and G = G
-func NewDHFromPAndG(p, g bi.BInt) DH {
+func NewDHFromPAndG(p, g bi.Int) DH {
 	A := randBigInt(bi.One, p)
 	PA := bi.Exp(g, A, p)
 	return DH{P: p, A: A, G: g, PA: PA}
 }
 
 // Make SessionKey takes the peers public key and adds our public key to it
-func (dh DH) MakeSessionKey(X bi.BInt) bi.BInt {
+func (dh DH) MakeSessionKey(X bi.Int) bi.Int {
 	sk := bi.Exp(X, dh.A, dh.P)
 	return sk
 }
 
-func SRPServer(password []byte) (bi.BInt, bi.BInt, bi.BInt, func(inputCh, outputCh chan []byte)) {
+func SRPServer(password []byte) (bi.Int, bi.Int, bi.Int, func(inputCh, outputCh chan []byte)) {
 	dh := NewDH()
 	k := bi.FromInt(3)
 	salt := utils.RandBytes(16)
