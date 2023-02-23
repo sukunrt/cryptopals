@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
-
-	"github.com/sukunrt/cryptopals/crypto"
 )
 
 func init() {
@@ -15,21 +12,5 @@ func init() {
 }
 
 func main() {
-	testAll()
-}
-
-func testAll() {
-	for i := 2; i < 100; i++ {
-		millerPrime := crypto.MillerRabin(crypto.NBI(i))
-		isPrime := true
-		for j := 2; j < i-1; j++ {
-			if i%j == 0 {
-				isPrime = false
-				break
-			}
-		}
-		if millerPrime != isPrime {
-			fmt.Println(millerPrime, isPrime, i)
-		}
-	}
+	Solve6_41()
 }

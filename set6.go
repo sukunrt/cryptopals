@@ -7,7 +7,7 @@ import (
 )
 
 func Solve6_41() {
-	msgs := []string{"hello", "world", "smallstrings", "with spaces"}
+	msgs := []string{"hello", "world", "smallstrings", "with spaces", "long string also"}
 	for _, m := range msgs {
 		out := crypto.UnPaddedRSAOracle(m)
 		if out != m {

@@ -9,20 +9,16 @@ import (
 	"math/big"
 	"os"
 
+	bi "github.com/sukunrt/cryptopals/bigint"
 	"github.com/sukunrt/cryptopals/crypto"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
-type BInt = crypto.BInt
-
-var BI = crypto.BI
-
 func Solve5_34() {
-
-	asch := make(chan *big.Int, 10)
-	arch := make(chan *big.Int, 10)
-	bsch := make(chan *big.Int, 10)
-	brch := make(chan *big.Int, 10)
+	asch := make(chan bi.BInt, 10)
+	arch := make(chan bi.BInt, 10)
+	bsch := make(chan bi.BInt, 10)
+	brch := make(chan bi.BInt, 10)
 	donech := make(chan string)
 	mach := make(chan []byte, 1)
 	mbch := make(chan []byte, 1)
@@ -91,19 +87,19 @@ func Solve5_36() {
 	outputCh <- dh.PA.Bytes()
 	salt := <-inputCh
 	B := <-inputCh
-	b := big.NewInt(0).SetBytes(B)
+	b := bi.FromBytes(B)
 	shaHF := sha256.New()
 	shaHF.Write(dh.PA.Bytes())
 	shaHF.Write(B)
-	u := big.NewInt(0).SetBytes(shaHF.Sum(nil))
+	u := bi.FromBytes(shaHF.Sum(nil))
 	shaHF.Reset()
 	shaHF.Write(salt)
 	shaHF.Write(password)
-	x := big.NewInt(0).SetBytes(shaHF.Sum(nil))
-	v := big.NewInt(0).Exp(g, x, p)
-	kv := big.NewInt(0).Mul(k, v)
-	po := big.NewInt(0).Add(dh.A, big.NewInt(0).Mul(u, x))
-	kk := big.NewInt(0).Exp(big.NewInt(0).Sub(b, kv), po, p)
+	x := bi.FromBytes(shaHF.Sum(nil))
+	v := bi.Exp(g, x, p)
+	kv := k.Mul(v)
+	po := dh.A.Add(u.Mul(x))
+	kk := bi.Exp(b.Sub(kv), po, p)
 	shaHF.Reset()
 	shaHF.Write(kk.Bytes())
 	key := shaHF.Sum(nil)
@@ -119,7 +115,7 @@ func Solve5_37() {
 	inputCh := make(chan []byte, 10)
 	outputCh := make(chan []byte, 10)
 	go serverFunc(outputCh, inputCh)
-	outputCh <- big.NewInt(0).Mul(big.NewInt(2), p).Bytes()
+	outputCh <- bi.Two.Mul(p).Bytes()
 	<-inputCh
 	<-inputCh
 	kk := big.NewInt(0)
@@ -135,7 +131,7 @@ func Solve5_37() {
 func Solve5_38() {
 	dh := crypto.NewDH()
 	n := dh.P
-	g := big.NewInt(2)
+	g := bi.FromInt(2)
 	done := make(chan struct{})
 	server := func(readCh, writeCh chan []byte) {
 		password := "helloworld"
@@ -146,22 +142,21 @@ func Solve5_38() {
 			panic(err)
 		}
 		x := sha.Sum(nil)
-		xi := big.NewInt(0).SetBytes(x)
-
-		v := big.NewInt(0).Exp(g, xi, n)
+		xi := bi.FromBytes(x)
+		v := bi.Exp(g, xi, n)
 
 		a := <-readCh
-		ai := big.NewInt(0).SetBytes(a)
+		ai := bi.FromBytes(a)
 		dh := crypto.NewDHFromPAndG(n, g)
 		u := utils.RandBytes(16)
-		ui := big.NewInt(0).SetBytes(u)
+		ui := bi.FromBytes(u)
 		writeCh <- []byte(salt)
 		writeCh <- dh.PA.Bytes()
 
 		writeCh <- u
 
-		m := big.NewInt(0).Mul(ai, big.NewInt(0).Exp(v, ui, n))
-		s := big.NewInt(0).Exp(m, dh.A, n)
+		m := ai.Mul(bi.Exp(v, ui, n))
+		s := bi.Exp(m, dh.A, n)
 
 		sha.Reset()
 		sha.Write(s.Bytes())
@@ -183,16 +178,14 @@ func Solve5_38() {
 		b := <-readCh
 		u := <-readCh
 
-		bi := big.NewInt(0).SetBytes(b)
-
-		ui := big.NewInt(0).SetBytes(u)
+		bb := bi.FromBytes(b)
+		ui := bi.FromBytes(u)
 
 		sha := sha256.New()
 		sha.Write([]byte(string(salt) + password))
 		x := sha.Sum(nil)
-		xi := big.NewInt(0).SetBytes(x)
-
-		s := big.NewInt(0).Exp(bi, big.NewInt(0).Add(dh.A, big.NewInt(0).Mul(xi, ui)), n)
+		xi := bi.FromBytes(x)
+		s := bi.Exp(bb, dh.A.Add(xi.Mul(ui)), n)
 		sha.Reset()
 		sha.Write(s.Bytes())
 		k := sha.Sum(nil)
@@ -226,21 +219,20 @@ func Solve5_38() {
 		}
 
 		a := <-readCh
-		ai := big.NewInt(0).SetBytes(a)
+		ai := bi.FromBytes(a)
 		dh := crypto.NewDHFromPAndG(n, g)
 		u := utils.RandBytes(16)
-		ui := big.NewInt(0).SetBytes(u)
+		ui := bi.FromBytes(u)
 		writeCh <- []byte(salt)
 		writeCh <- dh.PA.Bytes()
 		writeCh <- u
 		got := <-readCh
 		writeCh <- []byte("true")
 		for s, pwd := range shaDict {
-			xi := big.NewInt(0).SetBytes([]byte(s))
-			v := big.NewInt(0).Exp(g, xi, n)
-			v.Exp(v, ui, n)
-			v.Mul(v, ai)
-			v.Exp(v, dh.A, n)
+			xi := bi.FromBytes([]byte(s))
+			v := bi.Exp(g, xi, n)
+			v = bi.Exp(v, ui, n).Mul(ai)
+			v = bi.Exp(v, dh.A, n)
 			sha.Reset()
 			sha.Write(v.Bytes())
 			k := sha.Sum(nil)
@@ -262,16 +254,14 @@ func Solve5_38() {
 
 func Solve5_40(s string) string {
 	decodeBytes := func(c1, c2, c3 []byte, p1, p2, p3 crypto.RSAKey) []byte {
-		cs := []BInt{crypto.FromBytes(c1), crypto.FromBytes(c2), crypto.FromBytes(c3)}
-		ns := []BInt{p1.N, p2.N, p3.N}
+		cs := []bi.BInt{bi.FromBytes(c1), bi.FromBytes(c2), bi.FromBytes(c3)}
+		ns := []bi.BInt{p1.N, p2.N, p3.N}
 		m := crypto.CRT(cs, ns)
-		st, ed := BI(0), crypto.Clone(m)
+		st, ed := bi.Zero, bi.Copy(m)
 	binarySearch:
-		for ed.Cmp(BI(0).Add(st, BI(1))) > 0 {
-			mid := BI(0).Add(st, ed)
-			mid.Div(mid, BI(2))
-			x := BI(0).Mul(mid, mid)
-			x.Mul(x, mid)
+		for ed.Cmp(st.Add(bi.One)) > 0 {
+			mid := st.Add(ed).Div(bi.Two)
+			x := mid.Mul(mid).Mul(mid)
 			v := x.Cmp(m)
 			switch {
 			case v == 0:

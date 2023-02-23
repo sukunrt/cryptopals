@@ -1,16 +1,17 @@
 package crypto
 
 import (
+	bi "github.com/sukunrt/cryptopals/bigint"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
 type RSA struct {
 	Sz                int
-	P, Q, N, ET, E, D BInt
+	P, Q, N, ET, E, D bi.BInt
 }
 
 type RSAKey struct {
-	E, N BInt
+	E, N bi.BInt
 	Sz   int
 }
 
@@ -29,12 +30,12 @@ func (r RSA) PubKey() RSAKey {
 func NewRSAN(n int) RSA {
 	for {
 		p, q := RandPrimeN(n), RandPrimeN(n)
-		nn := BI(0).Mul(p, q)
-		p1, q1 := BI(0).Sub(p, BI(1)), BI(0).Sub(q, BI(1))
-		et := BI(0).Mul(p1, q1)
-		e := BI(3)
+		nn := p.Mul(q)
+		p1, q1 := p.Sub(bi.One), q.Sub(bi.One)
+		et := p1.Mul(q1)
+		e := bi.FromInt(3)
 
-		if gcd(e, et).Cmp(BI(1)) != 0 {
+		if !gcd(e, et).Equal(bi.One) {
 			continue
 		}
 		d := ModInv(e, et)
@@ -43,40 +44,35 @@ func NewRSAN(n int) RSA {
 }
 
 func EncryptRSA(b []byte, r RSA) []byte {
-	bi := FromBytes(b)
-	if bi.Cmp(r.N) > 0 {
+	i := bi.FromBytes(b)
+	if i.Cmp(r.N) > 0 {
 		return nil
 	}
-	return BI(0).Exp(bi, r.E, r.N).Bytes()
-
+	return bi.Exp(i, r.E, r.N).Bytes()
 }
 
 func DecryptRSA(b []byte, r RSA) []byte {
-	bi := FromBytes(b)
-	if bi.Cmp(r.N) > 0 {
+	i := bi.FromBytes(b)
+	if i.Cmp(r.N) > 0 {
 		return nil
 	}
-	return BI(0).Exp(bi, r.D, r.N).Bytes()
+	return bi.Exp(i, r.D, r.N).Bytes()
 }
 
 func UnPaddedRSAOracle(m string) string {
-	r := NewRSAN(20)
+	r := NewRSAN(128)
 	p := r.PubKey()
 	c := r.Encrypt([]byte(m))
 	oracle := func(b []byte) []byte {
 		return r.Decrypt(b)
 	}
 	s := utils.RandBytes(r.Sz - 1)
-	si := FromBytes(s)
+	si := bi.FromBytes(s)
 	sinv := ModInv(si, p.N)
-	se := BI(0).Exp(si, p.E, p.N)
-	cc := FromBytes(c)
-	cc.Mul(cc, se)
-	cc.Mod(cc, p.N)
+	se := bi.Exp(si, p.E, p.N)
+	cc := bi.FromBytes(c).Mul(se).Mod(p.N)
 	pc := oracle(cc.Bytes())
-	pi := FromBytes(pc)
-	pi.Mul(pi, sinv)
-	pi.Mod(pi, p.N)
+	pi := bi.FromBytes(pc).Mul(sinv).Mod(p.N)
 	mm := pi.Bytes()
 	return string(mm)
 }
