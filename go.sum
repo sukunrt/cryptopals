@@ -1,2 +1,4 @@
 github.com/sukunrt/bigint v0.0.0-20230223121131-0269f3a59631 h1:QtD+7aQhnJZ5mHvHuudbcUjnF/aBgEfLxyYjaiJpVsY=
 github.com/sukunrt/bigint v0.0.0-20230223121131-0269f3a59631/go.mod h1:R6tgkEUh7KT5FETv9i9f+17NJEimmHRoFu7qDX5/84k=
+github.com/sukunrt/bigint v0.0.0-20230224152601-9fab4cf38da5 h1:ObR/Nc10883iIrDN5z3rIDuL6Uk8oJnB64szeSyzXFk=
+github.com/sukunrt/bigint v0.0.0-20230224152601-9fab4cf38da5/go.mod h1:DwQvDPL100aMD/iZQ+uDe6q6PZ4+8DKZ+UKqNzNgciA=
