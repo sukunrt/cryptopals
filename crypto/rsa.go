@@ -1,6 +1,9 @@
 package crypto
 
 import (
+	"bytes"
+	"crypto/sha256"
+
 	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
 )
@@ -16,11 +19,35 @@ type RSAKey struct {
 }
 
 func (r RSA) Encrypt(b []byte) []byte {
-	return EncryptRSA(b, r)
+	return EncryptRSAWithPublicKey(b, r)
 }
 
 func (r RSA) Decrypt(b []byte) []byte {
-	return DecryptRSA(b, r)
+	return DecryptRSAWithPrivateKey(b, r)
+}
+
+func (r RSA) Sign(msg []byte) []byte {
+	sha := sha256.New()
+	sha.Write(msg)
+	digest := sha.Sum(nil)
+	padLen := r.Sz - len(digest) - 2 - 2 - 1 // 2 prefix, 2 hashId, 1 suffix
+	i := 0
+	block := make([]byte, r.Sz)
+	block[i] = 0
+	i++
+	block[1] = 1
+	i++
+	for j := 0; j < padLen; i, j = i+1, j+1 {
+		block[i] = 0xFF
+	}
+	block[i] = 00
+	i++
+	block[i] = 0xA
+	i++
+	block[i] = 0xB
+	i++
+	copy(block[i:], digest)
+	return EncryptRSA(block, r.D, r.N, r.Sz)
 }
 
 func (r RSA) PubKey() RSAKey {
@@ -43,20 +70,86 @@ func NewRSAN(n int) RSA {
 	}
 }
 
-func EncryptRSA(b []byte, r RSA) []byte {
-	i := bi.FromBytes(b)
-	if i.Cmp(r.N) > 0 {
-		return nil
-	}
-	return bi.Exp(i, r.E, r.N).Bytes()
+func EncryptRSAWithPublicKey(b []byte, r RSA) []byte {
+	return EncryptRSA(b, r.E, r.N, r.Sz)
 }
 
-func DecryptRSA(b []byte, r RSA) []byte {
+func DecryptRSAWithPrivateKey(b []byte, r RSA) []byte {
+	return EncryptRSA(b, r.D, r.N, r.Sz)
+}
+
+func EncryptRSA(b []byte, exp, N bi.Int, sz int) []byte {
 	i := bi.FromBytes(b)
-	if i.Cmp(r.N) > 0 {
+	if i.Cmp(N) > 0 {
 		return nil
 	}
-	return bi.Exp(i, r.D, r.N).Bytes()
+	bytes := bi.Exp(i, exp, N).Bytes()
+	bytes = append(utils.RepBytes(0, sz-len(bytes)), bytes...)
+	return bytes
+}
+
+func VerifyRSASignatureCorrect(msg []byte, signature []byte, r RSA) bool {
+	block := r.Encrypt(signature)
+	i := 0
+	if block[i] != 0 {
+		return false
+	}
+	i++
+	if block[i] != 1 {
+		return false
+	}
+	i++
+	for ; i < len(block); i++ {
+		if block[i] != 0xFF {
+			break
+		}
+	}
+	if i == len(block) {
+		return false
+	}
+
+	if block[i] != 0 {
+		return false
+	}
+	i++
+
+	if i+32+2 != len(block) {
+		return false
+	}
+	i += 2
+
+	sha := sha256.New()
+	sha.Write(msg)
+	return bytes.Equal(block[i:], sha.Sum(nil))
+}
+
+func VerifyRSASignatureInCorrect(msg []byte, signature []byte, r RSA) bool {
+	block := r.Encrypt(signature)
+	i := 0
+	if block[i] != 0 {
+		return false
+	}
+	i++
+	if block[i] != 1 {
+		return false
+	}
+	i++
+	for ; i < len(block); i++ {
+		if block[i] != 0xFF {
+			break
+		}
+	}
+	if i == len(block) {
+		return false
+	}
+	if block[i] != 0 {
+		return false
+	}
+	i++
+	i += 2
+	sha := sha256.New()
+	sha.Write(msg)
+	return bytes.Equal(block[i:i+32], sha.Sum(nil))
 }
 
 func UnPaddedRSAOracle(m string) string {

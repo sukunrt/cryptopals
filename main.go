@@ -12,5 +12,7 @@ func init() {
 }
 
 func main() {
-	Solve6_41()
+	for _, s := range []string{"hi mom", "there", "here", "yellow submarine"} {
+		Solve6_42(s)
+	}
 }
