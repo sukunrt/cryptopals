@@ -1,7 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
+	"strings"
+
+	"github.com/sukunrt/bigint"
+	"github.com/sukunrt/cryptopals/crypto"
+	"github.com/sukunrt/cryptopals/utils"
 )
 
 func init() {
@@ -12,7 +18,5 @@ func init() {
 }
 
 func main() {
-	for _, s := range []string{"hi mom", "there", "here", "yellow submarine"} {
-		Solve6_42(s)
-	}
+
 }

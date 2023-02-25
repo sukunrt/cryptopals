@@ -18,18 +18,14 @@ func RandPrime() bi.Int {
 }
 
 func RandPrimeN(numBytes int) bi.Int {
-	cnt := 0
 	for {
 		b := utils.RandBytes(numBytes)
-		if b[0] == 0 {
-			continue
-		}
-		b[len(b)-1] = b[len(b)-1] | 1
+		b[len(b)-1] |= 1
+		b[0] |= 0x80
 		r := bi.FromBytes(b)
 		if MillerRabin(r) {
 			return r
 		}
-		cnt++
 	}
 }
 
@@ -79,7 +75,7 @@ func CRT(c, n []bi.Int) bi.Int {
 	return z.Mod(N)
 }
 
-func MillerRabin(n bi.Int) bool {
+func MillerRabinRounds(n bi.Int, rounds int) bool {
 	if n.IsInt64() && n.Int() < 20 {
 		nn := n.Int()
 		for i := 2; i < nn-1; i++ {
@@ -98,7 +94,6 @@ func MillerRabin(n bi.Int) bool {
 		s++
 		d = d.Div(bi.Two)
 	}
-	rounds := 3
 	mx := 1 << 60
 	if n.IsInt64() {
 		mx = n.Int() - 4
@@ -107,7 +102,7 @@ outer:
 	for i := 0; i < rounds; i++ {
 		a := bi.FromInt(rand.Intn(mx) + 2)
 		st := bi.Exp(a, d, n)
-		if st.Equal(n.Sub(bi.One)) || st.Equal(n.Sub(bi.One)) {
+		if st.Equal(n.Sub(bi.One)) || st.Equal(bi.One) {
 			continue
 		}
 		for j := 0; j < s-1; j++ {
@@ -124,4 +119,8 @@ outer:
 		}
 	}
 	return true
+}
+
+func MillerRabin(n bi.Int) bool {
+	return MillerRabinRounds(n, 5)
 }
