@@ -1,13 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
-	"strings"
-
-	"github.com/sukunrt/bigint"
-	"github.com/sukunrt/cryptopals/crypto"
-	"github.com/sukunrt/cryptopals/utils"
 )
 
 func init() {
@@ -18,5 +12,5 @@ func init() {
 }
 
 func main() {
-
+	Solve6_43()
 }

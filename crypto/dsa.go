@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/sha1"
 	"crypto/sha256"
 	"errors"
 
@@ -44,6 +45,17 @@ func (d DSAPerUserParams) Sign(b []byte) (bi.Int, bi.Int) {
 		}
 		break
 	}
+	return r, s
+}
+
+func (d DSAPerUserParams) SignWithK(b []byte, k bi.Int) (bi.Int, bi.Int) {
+	sha := sha1.New()
+	sha.Write(b)
+	h := sha.Sum(nil)
+	hi := bi.FromBytes(h)
+	var r, s bi.Int
+	r = bi.Exp(d.G, k, d.P).Mod(d.Q)
+	s = ModInv(k, d.Q).Mul(hi.Add(d.X.Mul(r))).Mod(d.Q)
 	return r, s
 }
 
