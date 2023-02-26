@@ -122,8 +122,11 @@ So be friendly, a matter of life and death, just like a etch-a-sketch
 	e44984e2f411788efdc837a0d2e5abb7b555039fd243ac01f0fb2ed
 	1dec568280ce678e931868d23eb095fde9d3779191b8c0299d6e07b
 	bb283e6633451e535c45513b2d33c99ea17`)
-	r := bi.FromString("548099063082341131477253921760299949438196259240")
-	s := bi.FromString("857042759984254168557880549501802188789837994940")
+	var dsa crypto.DSAPerUserParams
+	var kk bi.Int
+	found := false
+	r, _ := bi.FromString("548099063082341131477253921760299949438196259240", 10)
+	s, _ := bi.FromString("857042759984254168557880549501802188789837994940", 10)
 	for k := 1; k < 1<<16; k++ {
 		ki := bi.FromInt(k)
 		x := ki.Mul(s).Sub(hi).Mul(crypto.ModInv(r, q)).Mod(q)
@@ -131,24 +134,121 @@ So be friendly, a matter of life and death, just like a etch-a-sketch
 			DSAParams: crypto.DSAParams{P: p, Q: q, G: g},
 			X:         x,
 			Y:         y,
+			H:         sh,
 		}
 		ri, si := d.SignWithK([]byte(msg), ki)
 		if ri.Equal(r) && si.Equal(s) {
-			sh = sha1.New()
+			sh.Reset()
 			sh.Write([]byte(x.Text(16)))
 			want := "0954edd5e0afe5542a4adf012611a91912a3ec16"
 			got := utils.ToHexString(sh.Sum(nil))
 			if got != want {
-				fmt.Println("failed")
 				continue
 			} else {
-				fmt.Println(x)
-				fmt.Println(got)
-				fmt.Println(want)
-				fmt.Println("found IT")
+				fmt.Printf("Private Key: 0x%s\n", x)
+				found = true
+				dsa = d
+				kk = ki
+				break
 			}
-			return
 		}
 	}
-	fmt.Println("failed")
+	if !found {
+		fmt.Println("failed")
+	}
+	r, s = dsa.SignWithK([]byte(msg), kk)
+	fmt.Println(r)
+	fmt.Println(s)
+}
+
+func Solve6_44() {
+	p := readHex(`800000000000000089e1855218a0e7dac38136ffafa72eda7
+	859f2171e25e65eac698c1702578b07dc2a1076da241c76c6
+	2d374d8389ea5aeffd3226a0530cc565f3bf6b50929139ebe
+	ac04f48c3c84afb796d61e5a4f9a8fda812ab59494232c7d2
+	b4deb50aa18ee9e132bfa85ac4374d7f9091abc3d015efc87
+	1a584471bb1`)
+
+	q := readHex(`f4f47f05794b256174bba6e9b396a7707e563c5b`)
+
+	g := readHex(`5958c9d3898b224b12672c0b98e06c60df923cb8bc999d119
+	458fef538b8fa4046c8db53039db620c094c9fa077ef389b5
+	322a559946a71903f990f1f7e0e025e2d7f7cf494aff1a047
+	0f5b64c36b625a097f1651fe775323556fe00b3608c887892
+	878480e99041be601a62166ca6894bdd41a7054ec89f756ba
+	9fc95302291`)
+
+	y := readHex(`2d026f4bf30195ede3a088da85e398ef869611d0f68f07
+	13d51c9c1a3a26c95105d915e2d8cdf26d056b86b8a7b8
+	5519b1c23cc3ecdc6062650462e3063bd179c2a6581519
+	f674a61f1d89a1fff27171ebc1b93d4dc57bceb7ae2430
+	f98a6a4d83d8279ee65d71c1203d2c96d65ebbf7cce9d3
+	2971c3de5084cce04a2e147821`)
+
+	type signMsg struct {
+		msg string
+		s   bi.Int
+		r   bi.Int
+		m   []byte
+		hi  bi.Int
+	}
+
+	var msgs []signMsg
+	sh := sha1.New()
+
+	scanner := utils.GetFileScanner("inputs/6-44.txt")
+	for scanner.Scan() {
+		msg := scanner.Text()[len("msg: "):]
+		scanner.Scan()
+		s, _ := bi.FromString(scanner.Text()[len("s: "):], 10)
+		scanner.Scan()
+		r, _ := bi.FromString(scanner.Text()[len("r: "):], 10)
+		scanner.Scan()
+		m := utils.FromHexString(scanner.Text()[len("m: "):])
+		sm := signMsg{msg: msg, s: s, r: r, m: m, hi: bi.FromBytes(m)}
+		sh.Reset()
+		sh.Write([]byte(msg))
+		if !bytes.Equal(sh.Sum(nil), sm.m) {
+			fmt.Println(msg, utils.ToHexString(m))
+			fmt.Println("failed to parse input")
+			return
+		}
+		msgs = append(msgs, sm)
+	}
+
+	/* Consider k is repeated in msgs[i] and msgs[j]
+	Find corresponding k.
+	Given k find the private key
+	Check if the two signatures match showing that k was correct
+	*/
+	for i := 0; i < len(msgs); i++ {
+		for j := i + 1; j < len(msgs); j++ {
+			sdiff := msgs[i].s.Sub(msgs[j].s).Mod(q)
+			mdiff := msgs[i].hi.Sub(msgs[j].hi).Mod(q)
+			k := mdiff.Mul(crypto.ModInv(sdiff, q)).Mod(q)
+			x := msgs[i].s.Mul(k).Sub(msgs[i].hi).Mul(crypto.ModInv(msgs[i].r, q)).Mod(q)
+			dsa := crypto.DSAPerUserParams{
+				DSAParams: crypto.DSAParams{
+					P: p,
+					Q: q,
+					G: g,
+				},
+				Y: y,
+				X: x,
+				H: sh,
+			}
+			r1, s1 := dsa.SignWithK([]byte(msgs[i].msg), k)
+			r2, s2 := dsa.SignWithK([]byte(msgs[j].msg), k)
+			if r1.Equal(msgs[i].r) && s1.Equal(msgs[i].s) && r2.Equal(msgs[j].r) && s2.Equal(msgs[j].s) {
+				sh.Reset()
+				sh.Write([]byte(x.Text(16)))
+				h := utils.ToHexString(sh.Sum(nil))
+				fmt.Println(h)
+				fmt.Println("ca8f6f7c66fa362d40760d135b763eb8527d3d52")
+				fmt.Println(x)
+				return
+			}
+		}
+	}
+	fmt.Println("FAILED")
 }

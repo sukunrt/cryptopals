@@ -1,4 +1,4 @@
-github.com/sukunrt/bigint v0.0.0-20230223121131-0269f3a59631 h1:QtD+7aQhnJZ5mHvHuudbcUjnF/aBgEfLxyYjaiJpVsY=
-github.com/sukunrt/bigint v0.0.0-20230223121131-0269f3a59631/go.mod h1:R6tgkEUh7KT5FETv9i9f+17NJEimmHRoFu7qDX5/84k=
-github.com/sukunrt/bigint v0.0.0-20230224152601-9fab4cf38da5 h1:ObR/Nc10883iIrDN5z3rIDuL6Uk8oJnB64szeSyzXFk=
-github.com/sukunrt/bigint v0.0.0-20230224152601-9fab4cf38da5/go.mod h1:DwQvDPL100aMD/iZQ+uDe6q6PZ4+8DKZ+UKqNzNgciA=
+github.com/sukunrt/bigint v0.0.0-20230226083106-d5bc2d29fa40 h1:HPKyd8xKCyAAn6NMdt4xOJXmCfKyulkpmM2Te/i1AXg=
+github.com/sukunrt/bigint v0.0.0-20230226083106-d5bc2d29fa40/go.mod h1:DwQvDPL100aMD/iZQ+uDe6q6PZ4+8DKZ+UKqNzNgciA=
+github.com/sukunrt/bigint v0.0.0-20230226132905-241b3c6ca684 h1:LdpdfCA5zuXijBiJtA65JmvK1Y/L2R6l6vvJocT7EVU=
+github.com/sukunrt/bigint v0.0.0-20230226132905-241b3c6ca684/go.mod h1:DwQvDPL100aMD/iZQ+uDe6q6PZ4+8DKZ+UKqNzNgciA=

@@ -7,6 +7,9 @@ import (
 )
 
 func FromHexString(s string) []byte {
+	if len(s)%2 == 1 {
+		s = "0" + s
+	}
 	data, err := hex.DecodeString(s)
 	if err != nil {
 		log.Fatalf("Failed to decode string as hex bytes\n%s", s)

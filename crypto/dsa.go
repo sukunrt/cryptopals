@@ -1,9 +1,8 @@
 package crypto
 
 import (
-	"crypto/sha1"
-	"crypto/sha256"
 	"errors"
+	"hash"
 
 	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
@@ -19,19 +18,17 @@ type DSAPerUserParams struct {
 	DSAParams
 	X bi.Int // private key
 	Y bi.Int // public key
+	H hash.Hash
 }
 
-func (d DSAParams) GenKey() DSAPerUserParams {
+func (d DSAParams) GenKey(hash hash.Hash) DSAPerUserParams {
 	x := bi.RandInt(d.Q.Sub(bi.One))
 	y := bi.Exp(d.G, x, d.P)
-	return DSAPerUserParams{DSAParams: d, X: x, Y: y}
+	return DSAPerUserParams{DSAParams: d, X: x, Y: y, H: hash}
 }
 
 func (d DSAPerUserParams) Sign(b []byte) (bi.Int, bi.Int) {
-	sha := sha256.New()
-	sha.Write(b)
-	h := sha.Sum(nil)
-	hi := bi.FromBytes(h)
+	hi := d.getHash(b)
 	var r, s bi.Int
 	for {
 		k := bi.RandInt(d.Q.Sub(bi.One))
@@ -49,10 +46,7 @@ func (d DSAPerUserParams) Sign(b []byte) (bi.Int, bi.Int) {
 }
 
 func (d DSAPerUserParams) SignWithK(b []byte, k bi.Int) (bi.Int, bi.Int) {
-	sha := sha1.New()
-	sha.Write(b)
-	h := sha.Sum(nil)
-	hi := bi.FromBytes(h)
+	hi := d.getHash(b)
 	var r, s bi.Int
 	r = bi.Exp(d.G, k, d.P).Mod(d.Q)
 	s = ModInv(k, d.Q).Mul(hi.Add(d.X.Mul(r))).Mod(d.Q)
@@ -60,10 +54,7 @@ func (d DSAPerUserParams) SignWithK(b []byte, k bi.Int) (bi.Int, bi.Int) {
 }
 
 func (d DSAPerUserParams) Verify(b []byte, r, s bi.Int) bool {
-	sha := sha256.New()
-	sha.Write(b)
-	h := sha.Sum(nil)
-	hi := bi.FromBytes(h)
+	hi := d.getHash(b)
 	w := ModInv(s, d.Q)
 	u1 := hi.Mul(w).Mod(d.Q)
 	u2 := r.Mul(w).Mod(d.Q)
@@ -71,8 +62,14 @@ func (d DSAPerUserParams) Verify(b []byte, r, s bi.Int) bool {
 	return v.Equal(r)
 }
 
-// GenerateDSAPrimes generates p, q and g for DSA with SHA256 as the has function
-func GenerateDSAPrimes(L, N int) (DSAParams, error) {
+func (d DSAPerUserParams) getHash(b []byte) bi.Int {
+	d.H.Reset()
+	d.H.Write(b)
+	return bi.FromBytes(d.H.Sum(nil))
+}
+
+// GenerateDSAParams generates p, q and g for DSA with SHA256 as the has function
+func GenerateDSAParams(L, N int) (DSAParams, error) {
 	if N >= L || N > 256 {
 		return DSAParams{}, ErrInvalidLen
 	}
