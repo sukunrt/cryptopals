@@ -252,3 +252,30 @@ func Solve6_44() {
 	}
 	fmt.Println("FAILED")
 }
+
+func Solve6_45() {
+	dsa, _ := crypto.GenerateDSAParams(1024, 160)
+	dsa.G = bi.Zero
+
+	h := sha1.New()
+	dsaU := dsa.GenKey(h)
+
+	msg1 := "Hello, world"
+	msg2 := "Goodbye, world"
+	// this will go into an infinite loop since y = 0^k is always 0
+	// r1, s1 := dsaU.Sign([]byte(msg1))
+	// r2, s2 := dsaU.Sign([]byte(msg2))
+
+	dsa.G = dsa.P.Add(bi.One)
+	dsaU = dsa.GenKey(h)
+
+	// here g = 1 => y = 1 & r = 1
+	// any exponent of g and y will always be 1
+	r := bi.One
+	z := bi.RandInt(dsaU.Q)
+	s := crypto.ModInv(z, dsaU.Q)
+
+	fmt.Println(dsaU.Verify([]byte(msg1), r, s))
+	fmt.Println(dsaU.Verify([]byte(msg2), r, s))
+
+}
