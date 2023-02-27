@@ -12,5 +12,5 @@ func init() {
 }
 
 func main() {
-	Solve6_45()
+	Solve6_46()
 }

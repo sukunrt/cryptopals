@@ -279,3 +279,41 @@ func Solve6_45() {
 	fmt.Println(dsaU.Verify([]byte(msg2), r, s))
 
 }
+
+func Solve6_46() {
+	msg := "VGhhdCdzIHdoeSBJIGZvdW5kIHlvdSBkb24ndCBwbGF5IGFyb3VuZCB3aXRoIHRoZSBGdW5reSBDb2xkIE1lZGluYQ=="
+	msgB := utils.FromBase64String(msg)
+	rsa := crypto.NewRSAN((2048) / 16)
+	oddOracle := func(b []byte) bool {
+		pt := rsa.Decrypt(b)
+		return bi.FromBytes(pt).Mod(bi.Two).Equal(bi.One)
+	}
+	cipher := rsa.Encrypt(msgB)
+	ci := bi.FromBytes(cipher)
+	lo, hi := bi.Zero, rsa.N
+	msgParity := bi.Zero
+	if oddOracle(cipher) {
+		msgParity = bi.One
+	}
+	for lo.Cmp(hi) < 0 {
+		mid := lo.Add(hi).Div(bi.Two)
+		mul := rsa.N.Div(mid)
+		t := bi.FromBytes(rsa.Encrypt(mul.Bytes())).Mul(ci).Mod(rsa.N)
+		isOdd := oddOracle(t.Bytes())
+		expectedParity := bi.Zero
+		if mul.Mod(bi.Two).Equal(bi.One) && msgParity.Equal(bi.One) {
+			expectedParity = bi.One
+		}
+		foundParity := bi.Zero
+		if isOdd {
+			foundParity = bi.One
+		}
+		if expectedParity.Equal(foundParity) {
+			hi = mid
+		} else {
+			lo = mid.Add(bi.One)
+		}
+	}
+	fmt.Println(string(hi.Bytes()))
+	fmt.Println(string(msgB))
+}
