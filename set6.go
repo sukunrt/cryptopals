@@ -317,3 +317,13 @@ func Solve6_46() {
 	fmt.Println(string(hi.Bytes()))
 	fmt.Println(string(msgB))
 }
+
+func Solve6_48(msg string) string {
+	rsa := crypto.NewRSAN(768 / (16))
+	oracle := func(b []byte) bool {
+		return crypto.ValidPadding(b, rsa)
+	}
+	c := crypto.EncryptRSAWithPadding([]byte(msg), rsa)
+	m := crypto.BreakRSAWithPaddingOracle(c, oracle, rsa)
+	return string(crypto.RemovePadding(m))
+}

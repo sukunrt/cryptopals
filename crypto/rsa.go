@@ -3,6 +3,8 @@ package crypto
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
+	"math/rand"
 
 	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
@@ -168,4 +170,138 @@ func UnPaddedRSAOracle(m string) string {
 	pi := bi.FromBytes(pc).Mul(sinv).Mod(p.N)
 	mm := pi.Bytes()
 	return string(mm)
+}
+
+func EncryptRSAWithPadding(b []byte, r RSA) []byte {
+	return r.Encrypt(PadBlock(b, r))
+}
+
+func ValidPadding(b []byte, r RSA) bool {
+	blk := r.Decrypt(b)
+	return blk[0] == 0 && blk[1] == 2
+}
+
+func RemovePadding(b []byte) []byte {
+	for i := 2; i < len(b); i++ {
+		if b[i] == 0 {
+			return b[i+1:]
+		}
+	}
+	return nil
+}
+
+func PadBlock(b []byte, r RSA) []byte {
+	res := make([]byte, r.Sz)
+	res[0] = 0
+	res[1] = 2
+	padSize := r.Sz - len(b) - 3
+	res[2+padSize] = 0
+	copy(res[3+padSize:], b)
+	rb := utils.RandBytes(padSize)
+	for i := 0; i < padSize; i++ {
+		for rb[i] == 0 {
+			rb[i] = byte(rand.Intn(1 << 8))
+		}
+		res[2+i] = rb[i]
+	}
+	return res
+}
+
+func CeilDiv(a, b bi.Int) bi.Int {
+	return a.Add(b.Sub(bi.One)).Div(b)
+}
+
+func FloorDiv(a, b bi.Int) bi.Int {
+	return a.Div(b)
+}
+
+type interval struct {
+	a, b bi.Int
+}
+
+func (i interval) String() string {
+	return fmt.Sprintf("interval{%s, %s}", i.a.String(), i.b.String())
+}
+
+func BreakRSAWithPaddingOracle(c []byte, oracle func([]byte) bool, r RSA) []byte {
+	B := bi.Exp(bi.Two, bi.FromInt(r.Sz*8-16), bi.Zero)
+	B2 := B.Mul(bi.Two)
+	B3 := B.Mul(bi.Three)
+	B31 := B3.Sub(bi.One)
+	ci := bi.FromBytes(c)
+	M := []interval{{B.Mul(bi.Two), B.Mul(bi.Three).Sub(bi.One)}}
+	N := r.N
+	i := 0
+	var s bi.Int
+	for {
+		switch {
+		case i == 0:
+			i++
+			for s = CeilDiv(N, B3); s.Cmp(N) < 0; s = s.Add(bi.One) {
+				se := bi.FromBytes(r.Encrypt(s.Bytes()))
+				valid := oracle(ci.Mul(se).Mod(N).Bytes())
+				if valid {
+					break
+				}
+			}
+		case len(M) > 1:
+			for s = s.Add(bi.One); s.Cmp(N) < 0; s = s.Add(bi.One) {
+				se := bi.FromBytes(r.Encrypt(s.Bytes()))
+				valid := oracle(ci.Mul(se).Mod(N).Bytes())
+				if valid {
+					break
+				}
+			}
+		default:
+			if M[0].b.Sub(M[0].a).Equal(bi.Zero) {
+				return M[0].b.Bytes()
+			}
+			a, b := M[0].a, M[0].b
+			sprev := s
+		outer:
+			for ri := bi.Two.Mul(b.Mul(sprev).Sub(B2)).Div(N); ; ri = ri.Add(bi.One) {
+				sst := CeilDiv(B2.Add(ri.Mul(N)), b)
+				sed := FloorDiv(B3.Add(ri.Mul(N)), a)
+				for s = sst; s.Cmp(sed) <= 0; s = s.Add(bi.One) {
+					se := bi.FromBytes(r.Encrypt(s.Bytes()))
+					valid := oracle(ci.Mul(se).Mod(N).Bytes())
+					if valid {
+						break outer
+					}
+				}
+			}
+		}
+
+		var NM []interval
+		for _, ival := range M {
+			a, b := ival.a, ival.b
+			rst := CeilDiv(a.Mul(s).Sub(B31), N)
+			red := FloorDiv(b.Mul(s).Sub(B2), N)
+			for ri := rst; ri.Cmp(red) <= 0; ri = ri.Add(bi.One) {
+				ist := CeilDiv(B2.Add(ri.Mul(N)), s)
+				ied := FloorDiv(B31.Add(ri.Mul(N)), s)
+				if ist.Cmp(a) < 0 {
+					ist = a
+				}
+				if ied.Cmp(b) > 0 {
+					ied = b
+				}
+				if ist.Cmp(B31) > 0 || ied.Cmp(B2) < 0 || ied.Cmp(ist) < 0 {
+					continue
+				}
+				nival := interval{a: ist, b: ied}
+				found := false
+				for _, iival := range NM {
+					if nival.a.Equal(iival.a) && nival.b.Equal(iival.b) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					NM = append(NM, nival)
+				}
+			}
+		}
+		M = NM
+	}
 }
