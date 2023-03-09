@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 )
 
@@ -13,6 +12,5 @@ func init() {
 }
 
 func main() {
-	s := "realistic text generation has happened"
-	fmt.Println(Solve6_48(s))
+	Solve7_49()
 }
