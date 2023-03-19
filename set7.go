@@ -3,11 +3,9 @@ package main
 import (
 	"bytes"
 	"compress/zlib"
-	"errors"
 	"fmt"
 	"math/rand"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -136,71 +134,71 @@ Content-Length: %d
 		return len(e)
 	}
 	b := []byte("sessionid=")
-	b, _, err := compressionAttackDepth(oracle, b)
-	if err != nil {
-		fmt.Println("FAILED")
-		return
-	}
-	fmt.Println("SUCCESS")
+	b = compressionAttackDepth(oracle, b)
 	fmt.Println(string(b))
 	fmt.Println(string(utils.FromBase64String(string(b)[len("sessionid="):])))
 }
 
-func compressionAttackDepth(oracle func([]byte) int, found []byte) ([]byte, byte, error) {
-	rb := make([]byte, 16)
-	for i := 0; i < len(rb); i++ {
-		rb[i] = byte(rand.Intn(1 << 7))
-		for i > 0 && rb[i] == rb[i-1] {
-			rb[i] = byte(rand.Intn(1 << 7))
+func compressionAttackDepth(oracle func([]byte) int, found []byte) []byte {
+	candidates := [][]byte{found}
+	for {
+		rb := make([]byte, 100)
+		for i := 0; i < 100; i++ {
+			rb[i] = byte(rand.Intn(1 << 8))
 		}
-	}
+		base := oracle(candidates[0])
+		var pad []byte
+		best := base
+		for i := 0; i < 100; i += 1 {
+			x := utils.ConcatBytes(rb[:i], candidates[0])
+			best = oracle(x)
+			if best > base {
+				pad = rb[:i-1]
+				break
+			}
+		}
 
-	v := make([]byte, len(found)+16)
+		newCandidates := make([][]byte, 0)
+		for _, cand := range candidates {
+			extensions, bb := findNext(oracle, pad, cand)
+			if bb < best {
+				newCandidates = make([][]byte, 0)
+				best = bb
+			}
+			if bb == best {
+				for i := 0; i < len(extensions); i++ {
+					nc := make([]byte, len(cand)+1)
+					copy(nc, cand)
+					nc[len(cand)] = extensions[i]
+					newCandidates = append(newCandidates, nc)
+				}
+			}
+		}
+		if len(newCandidates) == 1 && newCandidates[0][len(newCandidates[0])-1] == '\n' {
+			return newCandidates[0]
+		} else if len(newCandidates) == 0 {
+			panic("failed")
+		}
+		candidates = newCandidates
+	}
+}
+
+func findNext(oracle func([]byte) int, pad, found []byte) ([]byte, int) {
+	v := make([]byte, len(found)+1)
 	copy(v, found)
 	n := len(found)
-	N := n
-	base := oracle(found)
-	NL := base
-	for i := 1; i <= 16; i++ {
-		copy(v[n:], rb[:i])
-		nl := oracle(v[:n+i])
-		if nl > base {
-			N = n + i
-			NL = nl
-			break
-		}
-	}
+	candidates := make([]byte, 0)
 	valid := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+=\n")
-	type cand struct {
-		c byte
-		n int
-	}
-	candidates := make([]cand, 0)
+	best := 1000000
 	for i := 0; i < len(valid); i++ {
 		v[n] = valid[i]
-		nl := oracle(v[:N])
-		if nl < NL {
-			candidates = append(candidates, cand{valid[i], nl})
+		nl := oracle(utils.ConcatBytes(pad, v))
+		if nl < best {
+			candidates = []byte{valid[i]}
+			best = nl
+		} else if nl == best {
+			candidates = append(candidates, valid[i])
 		}
 	}
-	if len(candidates) == 0 {
-		return nil, 0, errors.New("failed")
-	}
-	sort.Slice(candidates, func(i, j int) bool { return candidates[i].n < candidates[j].n })
-	if len(candidates) == 1 && candidates[0].c == '\n' {
-		return v[:n], '\n', nil
-	} else if len(candidates) > 10 {
-		candidates = candidates[:10]
-	}
-	for i := 0; i < len(candidates); i++ {
-		if candidates[i].c == '\n' {
-			continue
-		}
-		v[n] = candidates[i].c
-		res, c, err := compressionAttackDepth(oracle, v[:n+1])
-		if c == '\n' {
-			return res, c, err
-		}
-	}
-	return nil, 0, errors.New("failed")
+	return candidates, best
 }
