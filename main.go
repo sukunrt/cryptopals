@@ -12,5 +12,5 @@ func init() {
 }
 
 func main() {
-	Solve7_50()
+	Solve7_51()
 }

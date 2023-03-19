@@ -2,8 +2,12 @@ package main
 
 import (
 	"bytes"
+	"compress/zlib"
+	"errors"
 	"fmt"
+	"math/rand"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -110,4 +114,93 @@ func Solve7_50() {
 		return
 	}
 	fmt.Println("FAILED")
+}
+
+func Solve7_51() {
+	key := crypto.RandAESKey()
+	cipher := crypto.NewAESInCBCCipher(key)
+
+	getInput := func(b []byte) []byte {
+		return []byte(fmt.Sprintf(`POST / HTTP/1.1
+Host: hapless.com
+Cookie: sessionid=TmV2ZXIgcmV2ZWFsIHRoZSBXdS1UYW5nIFNlY3JldCE=
+Content-Length: %d
+%s`, len(b), string(b)))
+	}
+	oracle := func(b []byte) int {
+		var buf bytes.Buffer
+		w := zlib.NewWriter(&buf)
+		w.Write(getInput(b))
+		w.Close()
+		e := cipher.Encrypt(buf.Bytes(), crypto.RandAESKey())
+		return len(e)
+	}
+	b := []byte("sessionid=")
+	b, _, err := compressionAttackDepth(oracle, b)
+	if err != nil {
+		fmt.Println("FAILED")
+		return
+	}
+	fmt.Println("SUCCESS")
+	fmt.Println(string(b))
+	fmt.Println(string(utils.FromBase64String(string(b)[len("sessionid="):])))
+}
+
+func compressionAttackDepth(oracle func([]byte) int, found []byte) ([]byte, byte, error) {
+	rb := make([]byte, 16)
+	for i := 0; i < len(rb); i++ {
+		rb[i] = byte(rand.Intn(1 << 7))
+		for i > 0 && rb[i] == rb[i-1] {
+			rb[i] = byte(rand.Intn(1 << 7))
+		}
+	}
+
+	v := make([]byte, len(found)+16)
+	copy(v, found)
+	n := len(found)
+	N := n
+	base := oracle(found)
+	NL := base
+	for i := 1; i <= 16; i++ {
+		copy(v[n:], rb[:i])
+		nl := oracle(v[:n+i])
+		if nl > base {
+			N = n + i
+			NL = nl
+			break
+		}
+	}
+	valid := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+=\n")
+	type cand struct {
+		c byte
+		n int
+	}
+	candidates := make([]cand, 0)
+	for i := 0; i < len(valid); i++ {
+		v[n] = valid[i]
+		nl := oracle(v[:N])
+		if nl < NL {
+			candidates = append(candidates, cand{valid[i], nl})
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, 0, errors.New("failed")
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].n < candidates[j].n })
+	if len(candidates) == 1 && candidates[0].c == '\n' {
+		return v[:n], '\n', nil
+	} else if len(candidates) > 10 {
+		candidates = candidates[:10]
+	}
+	for i := 0; i < len(candidates); i++ {
+		if candidates[i].c == '\n' {
+			continue
+		}
+		v[n] = candidates[i].c
+		res, c, err := compressionAttackDepth(oracle, v[:n+1])
+		if c == '\n' {
+			return res, c, err
+		}
+	}
+	return nil, 0, errors.New("failed")
 }
