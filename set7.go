@@ -202,3 +202,93 @@ func findNext(oracle func([]byte) int, pad, found []byte) ([]byte, int) {
 	}
 	return candidates, best
 }
+
+func Solve7_52() {
+	md := crypto.NewMD(16)
+	collisionChain := make([][2][]byte, 0)
+	cmap := make(map[string][]byte)
+	h := make([]byte, 2)
+	for len(collisionChain) < 10 {
+		x := utils.RandBytes(AESBlkSz)
+		nh := md.Hash(x, h)
+		_, ok := cmap[string(nh)]
+		if ok {
+			collisionChain = append(collisionChain, [...][]byte{cmap[string(nh)], x})
+			cmap = make(map[string][]byte)
+			h = nh
+			continue
+		}
+		cmap[string(nh)] = x
+	}
+	h = make([]byte, 2)
+	for i := 0; i < 1024; i++ {
+		var x []byte
+		var y []byte
+		for j := 0; j < 9; j++ {
+			x = append(x, utils.PadBytes(collisionChain[j][rand.Intn(2)], AESBlkSz)...)
+			y = append(y, utils.PadBytes(collisionChain[j][rand.Intn(2)], AESBlkSz)...)
+		}
+		x = append(x, utils.PadBytes(collisionChain[9][rand.Intn(2)], AESBlkSz)...)
+		y = append(y, utils.PadBytes(collisionChain[9][rand.Intn(2)], AESBlkSz)...)
+		if !bytes.Equal(md.Hash(x, h), md.Hash(y, h)) {
+			fmt.Println("Failed")
+		}
+	}
+
+	md2 := crypto.NewMD(32)
+	collisionChain = make([][2][]byte, 0)
+	cmap = make(map[string][]byte)
+	h = make([]byte, 2)
+	iter := 0
+	for {
+		iter++
+		x := utils.RandBytes(AESBlkSz)
+		nh := md.Hash(x, h)
+		_, ok := cmap[string(nh)]
+		if ok {
+			collisionChain = append(collisionChain, [...][]byte{cmap[string(nh)], x})
+			cmap = make(map[string][]byte)
+			h = nh
+			if dfs(collisionChain, 0, md2, nil, make(map[string][]byte), md) {
+				break
+			}
+			continue
+		}
+		cmap[string(nh)] = x
+		iter++
+	}
+	fmt.Println(iter)
+}
+
+func dfs(collisionChain [][2][]byte, i int, md *crypto.MD, b []byte, mp map[string][]byte, md1 *crypto.MD) bool {
+	var m1, m2 []byte
+	m1 = append(m1, b...)
+	m2 = append(m2, b...)
+	if i < len(collisionChain)-1 {
+		m1 = append(m1, utils.PadBytes(collisionChain[i][0], AESBlkSz)...)
+		m2 = append(m2, utils.PadBytes(collisionChain[i][1], AESBlkSz)...)
+		if !dfs(collisionChain, i+1, md, m1, mp, md1) {
+			return dfs(collisionChain, i+1, md, m2, mp, md1)
+		}
+		return true
+	} else {
+		m1 = append(m1, collisionChain[i][0]...)
+		h1 := md.Hash(m1, make([]byte, (md.Size+7)/8))
+		_, ok := mp[string(h1)]
+		if ok {
+			fmt.Printf("found it\n %x \n %x\n", mp[string(h1)], m1)
+			return true
+		}
+		mp[string(h1)] = m1
+		m2 = append(m2, collisionChain[i][1]...)
+		h2 := md.Hash(m2, make([]byte, (md.Size+7)/8))
+		_, ok = mp[string(h2)]
+		if ok {
+			fmt.Printf("found it \n %x \n %x\n", mp[string(h2)], m2)
+			return true
+		}
+		mp[string(h2)] = m2
+		return false
+
+	}
+}
