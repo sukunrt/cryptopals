@@ -66,8 +66,8 @@ func TestExpandableMessages(t *testing.T) {
 }
 
 func TestMDCollision(t *testing.T) {
-	md := NewMD(16)
-	b := utils.RandBytes(32 * AESBlockSize)
+	md := NewMD(32)
+	b := utils.RandBytes(2048 * AESBlockSize)
 	bb := FindCollisions(b, md)
 	md.Reset()
 	h1 := md.Hash(bb, make([]byte, md.Hsz))
