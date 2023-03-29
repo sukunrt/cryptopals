@@ -101,3 +101,15 @@ func TestSTree(t *testing.T) {
 		}
 	}
 }
+
+func TestNostradamusAttack(t *testing.T) {
+	md := NewMD(32)
+	f := NostradamusAttack(md)
+	m := []byte("1-0|2-3|2-0|3-5|5-3|4-4")
+	msg, hash := f(m)
+	md.Reset()
+	h := md.Hash(msg, make([]byte, 0))
+	if !bytes.Equal(h, hash) {
+		t.Errorf("expected hashes to be equal")
+	}
+}

@@ -164,6 +164,32 @@ func (s *sTree) isLeaf(b []byte) bool {
 	return ok
 }
 
+func (s *sTree) path(h string) []byte {
+	p := make([]byte, s.Len)
+	for i := 0; i < s.sz; i++ {
+		copy(p[i*AESBlockSize:], s.nm[i][h])
+		h = s.hm[i][h]
+	}
+	return p
+}
+
+func (s *sTree) GetMsg(b []byte) []byte {
+	msg := make([]byte, s.Len)
+	copy(msg, b)
+	s.md.Reset()
+	h, _ := s.md.WriteBlock(msg[:s.Len-(s.sz+1)*AESBlockSize])
+	for {
+		s.md.Set(h)
+		b := utils.RandBytes(AESBlockSize)
+		hh, _ := s.md.WriteBlock(b)
+		if _, ok := s.nm[0][string(hh)]; ok {
+			copy(msg[s.Len-(s.sz+1)*AESBlockSize:], b)
+			copy(msg[s.Len-s.sz*AESBlockSize:], s.path(string(hh)))
+			return msg
+		}
+	}
+}
+
 func makeSTree(k int, md *MD) *sTree {
 	s := &sTree{
 		nm:     make([]map[string][]byte, k+1),
@@ -171,7 +197,7 @@ func makeSTree(k int, md *MD) *sTree {
 		sz:     k,
 		states: make([][][]byte, k+1),
 		md:     md,
-		Len:    k + 2048 + 10,
+		Len:    (k + 2048 + 10) * AESBlockSize,
 		Hash:   make([]byte, md.Hsz),
 	}
 	n := 1
@@ -242,4 +268,15 @@ func makeSTree(k int, md *MD) *sTree {
 	s.md.Set(s.states[k][0])
 	s.Hash, _ = s.md.WriteBlock(x[len(x)-AESBlockSize:])
 	return s
+}
+
+func NostradamusAttack(md *MD) func(msg []byte) ([]byte, []byte) {
+	n := 10
+	if md.Size < n {
+		n = md.Size - 1
+	}
+	s := makeSTree(n, md)
+	return func(msg []byte) ([]byte, []byte) {
+		return s.GetMsg(msg), s.Hash
+	}
 }
