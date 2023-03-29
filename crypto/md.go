@@ -18,6 +18,16 @@ func NewMD(n int) *MD {
 	return &MD{Size: n, Hsz: hsz, H: make([]byte, hsz)}
 }
 
+func (m *MD) Copy() *MD {
+	h := make([]byte, m.Hsz)
+	copy(h, m.H)
+	return &MD{
+		Size: m.Size,
+		Hsz:  m.Hsz,
+		H:    h,
+	}
+}
+
 func (m *MD) Hash(b []byte, initH []byte) []byte {
 	m.H = make([]byte, m.Hsz)
 	copy(m.H, initH)
@@ -136,4 +146,100 @@ func FindCollisions(b []byte, md *MD) []byte {
 	res = append(res, bridge...)
 	res = append(res, b[ii*AESBlockSize:]...)
 	return res
+}
+
+type sTree struct {
+	nm     []map[string][]byte
+	hm     []map[string]string
+	sz     int
+	states [][][]byte
+	md     *MD
+
+	Len  int
+	Hash []byte
+}
+
+func (s *sTree) isLeaf(b []byte) bool {
+	_, ok := s.nm[0][string(b)]
+	return ok
+}
+
+func makeSTree(k int, md *MD) *sTree {
+	s := &sTree{
+		nm:     make([]map[string][]byte, k+1),
+		hm:     make([]map[string]string, k+1),
+		sz:     k,
+		states: make([][][]byte, k+1),
+		md:     md,
+		Len:    k + 2048 + 10,
+		Hash:   make([]byte, md.Hsz),
+	}
+	n := 1
+	for i := 0; i < k; i++ {
+		n *= 2
+	}
+	s.nm[0] = make(map[string][]byte)
+	s.hm[0] = make(map[string]string)
+	s.states[0] = make([][]byte, 0)
+	for i := 0; i < n; i++ {
+		for {
+			h := utils.RandBytes(md.Hsz)
+			if _, ok := s.nm[0][string(h)]; !ok {
+				s.nm[0][string(h)] = make([]byte, AESBlockSize)
+				s.states[0] = append(s.states[0], h)
+				break
+			}
+		}
+	}
+	// at this point the ith layer has been set. The last layer will not need any work so i < k-1
+	for i := 0; i < k; i++ {
+		if i+1 <= k {
+			s.nm[i+1] = make(map[string][]byte)
+			s.states[i+1] = make([][]byte, 0)
+			s.hm[i+1] = make(map[string]string)
+		}
+		m := make(map[string]int)
+		mb := make([]map[string][]byte, n)
+		done := make(map[int]bool)
+		cnt := 0
+		for j := 0; j < n; j++ {
+			mb[j] = make(map[string][]byte)
+		}
+	OUTER:
+		for {
+			for j := 0; j < n; j++ {
+				if done[j] {
+					continue
+				}
+				b := utils.RandBytes(AESBlockSize)
+				md.Set(s.states[i][j])
+				h, _ := md.WriteBlock(b)
+				x, ok := m[string(h)]
+				if !ok {
+					m[string(h)] = j
+					mb[j][string(h)] = b
+					continue
+				} else if ok && (x == j || done[x]) {
+					continue
+				}
+				done[j] = true
+				done[x] = true
+				s.nm[i+1][string(h)] = make([]byte, AESBlockSize)
+				s.states[i+1] = append(s.states[i+1], h)
+				s.nm[i][string(s.states[i][j])] = b
+				s.nm[i][string(s.states[i][x])] = mb[x][string(h)]
+				s.hm[i][string(s.states[i][j])] = string(h)
+				s.hm[i][string(s.states[i][x])] = string(h)
+				cnt += 2
+				if cnt >= n {
+					break OUTER
+				}
+			}
+		}
+		n /= 2
+	}
+	x := utils.PadBytes(make([]byte, AESBlockSize), AESBlockSize)
+	s.md.Set(s.states[k][0])
+	s.Hash, _ = s.md.WriteBlock(x[len(x)-AESBlockSize:])
+	return s
 }

@@ -76,3 +76,28 @@ func TestMDCollision(t *testing.T) {
 		t.Fatalf("hash should be equal")
 	}
 }
+
+func TestSTree(t *testing.T) {
+	md := NewMD(32)
+	k := 5
+	s := makeSTree(k, md)
+	for j := 0; j < 32; j++ {
+		path := make([][]byte, 0)
+		st := s.states[0][j]
+		nxt := string(st)
+		for i := 0; i < k; i++ {
+			path = append(path, s.nm[i][nxt])
+			nxt = s.hm[i][string(nxt)]
+		}
+		p := utils.ConcatBytes(path...)
+		p = utils.PadBytes(p, AESBlockSize)
+		md.Set(st)
+		h, err := md.WriteBlock(p)
+		if err != nil {
+			t.Errorf("failed to hash")
+		}
+		if !bytes.Equal(s.Hash, h) {
+			t.Errorf("failure, start pos %d", j)
+		}
+	}
+}
