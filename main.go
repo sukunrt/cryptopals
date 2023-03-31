@@ -2,6 +2,9 @@ package main
 
 import (
 	"math/rand"
+
+	"github.com/sukunrt/cryptopals/crypto/wangmd"
+	"github.com/sukunrt/cryptopals/utils"
 )
 
 func init() {
@@ -12,5 +15,8 @@ func init() {
 }
 
 func main() {
-	Solve7_52()
+	wmd := &wangmd.WangMD4{}
+	for i := 0; i < 100; i++ {
+		wmd.Hash(utils.RandBytes(512 / 8))
+	}
 }

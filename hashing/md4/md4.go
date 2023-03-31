@@ -47,7 +47,7 @@ func (d *digest) Reset() {
 }
 
 // New returns a new hash.Hash computing the MD4 checksum.
-func New() hash.Hash {
+func New() *digest {
 	d := new(digest)
 	d.Reset()
 	return d
@@ -89,6 +89,18 @@ func (d *digest) Write(p []byte) (nn int, err error) {
 		d.nx = copy(d.x[:], p)
 	}
 	return
+}
+
+// CSum returns the current checksum
+func (d *digest) CSum() []byte {
+	var res []byte
+	for _, s := range d.s {
+		res = append(res, byte(s>>0))
+		res = append(res, byte(s>>8))
+		res = append(res, byte(s>>16))
+		res = append(res, byte(s>>24))
+	}
+	return res
 }
 
 func (d0 *digest) Sum(in []byte) []byte {
