@@ -2,20 +2,27 @@ package wangmd
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 
-	"github.com/sukunrt/cryptopals/hashing/md4"
 	"github.com/sukunrt/cryptopals/utils"
 )
 
-func TestHash(t *testing.T) {
+func TestGenCollision(t *testing.T) {
+	rand.Seed(82734895274358902)
 	w := &WangMD4{}
-	blk := utils.RepBytes('1', 512/8)
-	sm := w.HashTransform(blk)
-	m := md4.New()
-	m.Write(blk)
-	sm2 := m.CSum()
-	if !bytes.Equal(sm, sm2) {
-		t.Fatalf("failed checksum")
+	x1, x2 := w.GenCollision()
+	if !bytes.Equal(x1, x2) {
+		t.Fatalf("failed")
+	}
+
+}
+
+func TestPacking(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		msg := utils.RandBytes(512 / 8)
+		if !bytes.Equal(msg, pack(unpack(msg))) {
+			t.Errorf("packing unpacking shoule be same")
+		}
 	}
 }

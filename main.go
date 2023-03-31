@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+
+	"github.com/sukunrt/cryptopals/utils"
+	"golang.org/x/crypto/md4"
 )
 
 func init() {
@@ -19,7 +22,7 @@ type expr struct {
 }
 
 func (e expr) String() string {
-	return fmt.Sprintf("pb(%s[%d], %d)", e.x, e.v, e.vv)
+	return fmt.Sprintf("pb(wmd.%s[%d], %d)", e.x, e.v, e.vv)
 }
 
 func parseExpr(s string, i int) (expr, int, error) {
@@ -87,9 +90,18 @@ func transformS(s string) string {
 	for _, item := range items {
 		ss += item
 	}
-	return fmt.Sprintf("%sn := %s[%d] %s", string(c), string(c), n, ss)
+	return fmt.Sprintf("%sn := wmd.%s[%d] %s", string(c), string(c), n, ss)
 }
 
 func main() {
-	fmt.Println(transformS("d3 d3,13 = 1, d3,14 = 1, d3,15 = 1, d3,17 = 0, d3,20 = 0, d3,21 = 1, d3,22 = 1, d3,23 = 0, d3,26 = 1, d3,30 = a3,30"))
+
+	md := md4.New()
+	m1 := utils.FromHexString("4d7a9c8356cb927ab9d5a57857a7a5eede748a3cdcc366b3b683a0203b2a5d9fc69d71b3f9e99198d79f805ea63bb2e845dd8e3197e31fe52794bf08b9e8c3e9")
+	md.Write(m1)
+	fmt.Println(utils.ToHexString(md.Sum(nil)))
+
+	mm2 := utils.FromHexString("4d7a9c83d6cb927a29d5a57857a7a5eede748a3cdcc366b3b683a0203b2a5d9fc69d71b3f9e99198d79f805ea63bb2e845dc8e3197e31fe52794bf08b9e8c3e9")
+	md.Reset()
+	md.Write(mm2)
+	fmt.Println(utils.ToHexString(md.Sum(nil)))
 }
