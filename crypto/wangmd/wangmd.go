@@ -9,7 +9,7 @@ import (
 	"github.com/sukunrt/cryptopals/utils"
 )
 
-var rot = bits.RotateLeft32
+var rotL = bits.RotateLeft32
 
 type WangMD4 struct {
 	transforms map[int]func(a, b, c, d [16]uint32, m [16]uint32) ([16]uint32, bool)
@@ -17,7 +17,46 @@ type WangMD4 struct {
 	a, b, c, d [16]uint32
 }
 
-var transforms = map[int]func(a, b, c, d, m [16]uint32) ([16]uint32, bool){}
+func pb(x uint32, y int) uint32 {
+	return x & (1 << (y - 1))
+}
+
+func rotR(x uint32, y uint32) uint32 {
+	return x >> y
+}
+
+var transforms = map[int]func(a, b, c, d, m [16]uint32) ([16]uint32, bool){
+	1: func(a, b, c, d, m [16]uint32) ([16]uint32, bool) {
+		//a1,7 = b0,7
+		an := a[1] ^ (pb(a[1], 7) ^ pb(b[0], 7))
+		m[0] = rotR(an, shift[0][0]) - a[0] - ff(b[0], c[0], d[0])
+		return m, false
+	},
+	2: func(a, b, c, d, m [16]uint32) ([16]uint32, bool) {
+		//d1,7 = 0, d1,8 = a1,8, d1,11 = a1,11
+		dn := d[1] ^ (pb(d[1], 7)) ^ (pb(d[1], 8) ^ pb(a[1], 8)) ^ (pb(d[1], 11) ^ pb(a[1], 11))
+		m[1] = rotR(dn, shift[0][1]) - d[0] - ff(a[0], b[0], c[0])
+		return m, false
+	},
+	// 3: func(a, b, c, d, m [16]uint32) ([16]uint32, bool) {
+	// 	//c1,7 = 1, c1,8 = 1, c1,11 = 0, c1,26 = d1,26
+	// 	cn := d[1] ^ (pb(d[1], 7)) ^ (pb(d[1], 8) ^ pb(a[1], 8)) ^ (pb(d[1], 11) ^ pb(a[1], 11))
+	// 	m[0] = rotR(dn, shift[0][1]) - d[0] - ff(a[0], b[0], c[0])
+	// 	return m, false
+	// },
+	// 4: func(a, b, c, d, m [16]uint32) ([16]uint32, bool) {
+	// 	//d1,7 = 0, d1,8 = a1,8, d1,11 = a1,11
+	// 	dn := d[1] ^ (pb(d[1], 7)) ^ (pb(d[1], 8) ^ pb(a[1], 8)) ^ (pb(d[1], 11) ^ pb(a[1], 11))
+	// 	m[0] = rotR(dn, shift[0][1]) - d[0] - ff(a[0], b[0], c[0])
+	// 	return m, false
+	// },
+	// 2: func(a, b, c, d, m [16]uint32) ([16]uint32, bool) {
+	// 	//d1,7 = 0, d1,8 = a1,8, d1,11 = a1,11
+	// 	dn := d[1] ^ (pb(d[1], 7)) ^ (pb(d[1], 8) ^ pb(a[1], 8)) ^ (pb(d[1], 11) ^ pb(a[1], 11))
+	// 	m[0] = rotR(dn, shift[0][1]) - d[0] - ff(a[0], b[0], c[0])
+	// 	return m, false
+	// },
+}
 
 func ff(x, y, z uint32) uint32 {
 	return (x & y) | ((^x) & z)
@@ -32,15 +71,15 @@ func hf(x, y, z uint32) uint32 {
 }
 
 func phi1(a, b, c, d, m, s uint32) uint32 {
-	return rot(a+ff(b, c, d)+m, int(s))
+	return rotL(a+ff(b, c, d)+m, int(s))
 }
 
 func phi2(a, b, c, d, m, s uint32) uint32 {
-	return rot(a+gf(b, c, d)+m+0x5A827999, int(s))
+	return rotL(a+gf(b, c, d)+m+0x5A827999, int(s))
 }
 
 func phi3(a, b, c, d, m, s uint32) uint32 {
-	return rot(a+hf(b, c, d)+m+0x6ED9EBA1, int(s))
+	return rotL(a+hf(b, c, d)+m+0x6ED9EBA1, int(s))
 }
 
 func setBit(x uint32, i int) uint32 {
