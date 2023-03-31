@@ -2,17 +2,24 @@ package wangmd
 
 import (
 	"bytes"
-	"math/rand"
 	"testing"
 
 	"github.com/sukunrt/cryptopals/utils"
+	"golang.org/x/crypto/md4"
 )
 
 func TestGenCollision(t *testing.T) {
-	rand.Seed(82734895274358902)
 	w := &WangMD4{}
 	x1, x2 := w.GenCollision()
-	if !bytes.Equal(x1, x2) {
+
+	md := md4.New()
+	md.Write(x1)
+	h1 := md.Sum(nil)
+	md.Reset()
+	md.Write(x2)
+	h2 := md.Sum(nil)
+	md.Reset()
+	if !bytes.Equal(h1, h2) {
 		t.Fatalf("failed")
 	}
 

@@ -269,7 +269,7 @@ func Reverse(s string) string {
 func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 	cnt := 1
 	for {
-		if cnt > 1 {
+		if cnt > 1000000000 {
 			fmt.Println("quiccing here", cnt)
 			return nil, nil
 		}
@@ -277,15 +277,9 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 		if cnt%10000 == 0 {
 			fmt.Println(cnt)
 		}
-		//m1 := utils.RandBytes(512 / 8)
+		m1 := utils.RandBytes(512 / 8)
 
-		wmd.m = [16]uint32{0x4d7a9c83, 0x56cb927a, 0xb9d5a578, 0x57a7a5ee, 0xde748a3c, 0xdcc366b3, 0xb683a020, 0x3b2a5d9f,
-			0xc69d71b3, 0xf9e99198, 0xd79f805e, 0xa63bb2e8, 0x45dd8e31, 0x97e31fe5, 0x2794bf08, 0xb9e8c3e9}
-		fmt.Println(wmd.m)
-		mmd := md4.New()
-		mmd.Write(pack(wmd.m))
-		fmt.Println(utils.ToHexString(mmd.CSum()))
-		fmt.Println(utils.ToHexString(mmd.Sum(nil)))
+		wmd.m = unpack(m1)
 	START:
 
 		wmd.aa = uint32(0x67452301)
@@ -422,7 +416,6 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 		wmd.a[5] = wmd.aa
 		st++
 		if ok := wmd.applyTransform(st); ok {
-			fmt.Println("failed")
 			goto START
 		}
 
@@ -531,9 +524,9 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 		// if ok := wmd.applyTransform(st); ok {
 		// 	goto START
 		// }
-
+		m2 := wmd.getM2()
 		msg1 := pack(wmd.m)
-		msg2 := pack(wmd.getM2())
+		msg2 := pack(m2)
 
 		md := md4.New()
 		md.Write(msg1)
@@ -544,7 +537,6 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 		h2 := md.Sum(nil)
 
 		if !bytes.Equal(h1, h2) {
-			fmt.Println("should be equal")
 			continue
 		}
 
@@ -559,11 +551,9 @@ func (wmd *WangMD4) getM2() [16]uint32 {
 
 	m2[2] = m2[2] + ob(32)
 
-	m2[2] = m2[2] - ob(28)
+	m2[2] = m2[2] - ob(29)
 
 	m2[12] = m2[12] - ob(17)
 
-	fmt.Println(wmd.m)
-	fmt.Println(m2)
 	return m2
 }
