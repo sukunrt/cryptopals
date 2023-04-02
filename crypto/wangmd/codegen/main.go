@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"math/rand"
+	"os"
 	"strings"
 )
 
@@ -36,7 +38,7 @@ func (c cond) String() string {
 		if c.rexpr.v == 0 {
 			return fmt.Sprintf(" %s ", c.lexpr)
 		} else {
-			return fmt.Sprintf(" %s ^ ob(%d)", c.lexpr, c.rexpr.v)
+			return fmt.Sprintf(" %s ^ ob(%d)", c.lexpr, c.lexpr.vv)
 		}
 	case exprTypeVariable:
 		return fmt.Sprintf(" %s ^ %s", c.lexpr, c.rexpr)
@@ -80,17 +82,14 @@ func parseExpr(s string, i int) (expr, int, error) {
 func transformS(s string) string {
 	items := []cond{}
 	var lexpr, rexpr expr
+	var err error
 	state := "st"
-	oexpr, i, err := parseExpr(s, 0)
-	if err != nil {
-		panic(err)
-	}
-	for ; i < len(s); i++ {
+	for i := 2; i < len(s); i++ {
 		if s[i] == ' ' || s[i] == '=' || s[i] == ',' {
 			continue
 		}
 		switch state {
-		case "lt":
+		case "st":
 			lexpr, i, err = parseExpr(s, i)
 			if err != nil {
 				panic(err)
@@ -109,9 +108,17 @@ func transformS(s string) string {
 	for i := 0; i < len(items); i++ {
 		ss = fmt.Sprintf("%s ^ %s", ss, items[i])
 	}
-	return fmt.Sprintf("wmd.%s[%d] = wmd.%s[%d] ^ %s", oexpr.x, oexpr.v, oexpr.x, oexpr.v, ss)
+	c := s[0:1]
+	d := int(s[1] - '0')
+	return fmt.Sprintf("wmd.%s[%d] = wmd.%s[%d] %s", c, d, c, d, ss)
 }
 
 func main() {
-
+	s := bufio.NewScanner(os.Stdin)
+	i := 0
+	for s.Scan() {
+		i++
+		ss := transformS(s.Text())
+		fmt.Printf("case %d: %s\n", i, ss)
+	}
 }
