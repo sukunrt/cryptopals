@@ -2,12 +2,12 @@ package wangmd
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"math/bits"
 
-	"github.com/sukunrt/cryptopals/hashing/md4"
-	"github.com/sukunrt/cryptopals/utils"
+	"golang.org/x/crypto/md4"
 )
 
 var rotL = bits.RotateLeft32
@@ -256,7 +256,7 @@ func pack(m [16]uint32) []byte {
 	return msg
 }
 
-var shift = [][4]uint32{{3, 7, 11, 19}, {3, 5, 9, 13}, {3, 9, 11, 15}}
+var shift = [][4]uint32{{3, 7, 11, 19}, {3, 5, 9, 11}}
 
 func Reverse(s string) string {
 	runes := []rune(s)
@@ -266,19 +266,15 @@ func Reverse(s string) string {
 	return string(runes)
 }
 
-func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
-	cnt := 1
+func (wmd *WangMD4) GenCollision() ([]byte, []byte, error) {
+	cnt := 0
+	m1 := make([]byte, 512/8)
 	for {
-		if cnt > 1000000000 {
-			fmt.Println("quiccing here", cnt)
-			return nil, nil
-		}
 		cnt++
-		if cnt%10000 == 0 {
-			fmt.Println(cnt)
+		if cnt > 1000000 {
+			return nil, nil, errors.New("failed")
 		}
-		m1 := utils.RandBytes(512 / 8)
-
+		rand.Read(m1)
 		wmd.m = unpack(m1)
 	START:
 
@@ -293,239 +289,40 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 		wmd.d[0] = wmd.dd
 
 		st := 0
+		for j := 0; j < 4; j++ {
+			st++
+			wmd.a[j+1] = phi1(wmd.a[j], wmd.b[j], wmd.c[j], wmd.d[j], wmd.m[st-1], shift[0][0])
+			wmd.applyTransform(st)
 
-		//round 0 begins here
-		//round := 0
+			st++
+			wmd.d[j+1] = phi1(wmd.d[j], wmd.a[j+1], wmd.b[j], wmd.c[j], wmd.m[st-1], shift[0][1])
+			wmd.applyTransform(st)
 
-		wmd.aa = phi1(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[st], shift[0][st%4])
-		wmd.a[1] = wmd.aa
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
+			st++
+			wmd.c[j+1] = phi1(wmd.c[j], wmd.d[j+1], wmd.a[j+1], wmd.b[j], wmd.m[st-1], shift[0][2])
+			wmd.applyTransform(st)
+
+			st++
+			wmd.b[j+1] = phi1(wmd.b[j], wmd.c[j+1], wmd.d[j+1], wmd.a[j+1], wmd.m[st-1], shift[0][3])
+			wmd.applyTransform(st)
 		}
 
-		wmd.dd = phi1(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[st], shift[0][st%4])
-		wmd.d[1] = wmd.dd
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.cc = phi1(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[st], shift[0][st%4])
-		wmd.c[1] = wmd.cc
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.bb = phi1(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[st], shift[0][st%4])
-		wmd.b[1] = wmd.bb
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.aa = phi1(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[st], shift[0][st%4])
-		wmd.a[2] = wmd.aa
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.dd = phi1(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[st], shift[0][st%4])
-		wmd.d[2] = wmd.dd
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.cc = phi1(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[st], shift[0][st%4])
-		wmd.c[2] = wmd.cc
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.bb = phi1(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[st], shift[0][st%4])
-		wmd.b[2] = wmd.bb
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.aa = phi1(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[st], shift[0][st%4])
-		wmd.a[3] = wmd.aa
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.dd = phi1(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[st], shift[0][st%4])
-		wmd.d[3] = wmd.dd
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.cc = phi1(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[st], shift[0][st%4])
-		wmd.c[3] = wmd.cc
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.bb = phi1(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[st], shift[0][st%4])
-		wmd.b[3] = wmd.bb
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.aa = phi1(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[st], shift[0][st%4])
-		wmd.a[4] = wmd.aa
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.dd = phi1(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[st], shift[0][st%4])
-		wmd.d[4] = wmd.dd
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.cc = phi1(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[st], shift[0][st%4])
-		wmd.c[4] = wmd.cc
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		wmd.bb = phi1(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[st], shift[0][st%4])
-		wmd.b[4] = wmd.bb
-		st++
-		if ok := wmd.applyTransform(st); ok {
-			goto START
-		}
-
-		//round 1 begins here
-		round := 1
 		wmd.temp = wmd.aa
-		wmd.aa = phi2(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[0], shift[round][st%4])
-		wmd.a[5] = wmd.aa
+		wmd.a[5] = phi2(wmd.a[4], wmd.b[4], wmd.c[4], wmd.d[4], wmd.m[0], shift[1][0])
 		st++
 		if ok := wmd.applyTransform(st); ok {
 			goto START
 		}
 
 		wmd.temp = wmd.dd
-		wmd.dd = phi2(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[4], shift[round][st%4])
-		wmd.d[5] = wmd.dd
+		wmd.d[5] = phi2(wmd.d[4], wmd.a[5], wmd.b[4], wmd.c[4], wmd.m[4], shift[1][1])
 		st++
 		if ok := wmd.applyTransform(st); ok {
 			goto START
 		}
 
-		// wmd.cc = phi2(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[8], shift[round][st%4])
-		// wmd.c[5] = wmd.cc
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.bb = phi2(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[12], shift[round][st%4])
-		// wmd.b[5] = wmd.bb
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.aa = phi2(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[1], shift[round][st%4])
-		// wmd.a[6] = wmd.aa
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.dd = phi2(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[5], shift[round][st%4])
-		// wmd.d[6] = wmd.dd
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.cc = phi2(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[9], shift[round][st%4])
-		// wmd.c[6] = wmd.cc
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.bb = phi2(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[13], shift[round][st%4])
-		// wmd.b[6] = wmd.bb
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.aa = phi2(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[2], shift[round][st%4])
-		// wmd.a[7] = wmd.aa
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.dd = phi2(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[6], shift[round][st%4])
-		// wmd.d[7] = wmd.dd
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.cc = phi2(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[10], shift[round][st%4])
-		// wmd.c[7] = wmd.cc
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.bb = phi2(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[14], shift[round][st%4])
-		// wmd.b[7] = wmd.bb
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.aa = phi2(wmd.aa, wmd.bb, wmd.cc, wmd.dd, wmd.m[3], shift[round][st%4])
-		// wmd.a[8] = wmd.aa
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.dd = phi2(wmd.dd, wmd.aa, wmd.bb, wmd.cc, wmd.m[7], shift[round][st%4])
-		// wmd.d[8] = wmd.dd
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.cc = phi2(wmd.cc, wmd.dd, wmd.aa, wmd.bb, wmd.m[11], shift[round][st%4])
-		// wmd.c[8] = wmd.cc
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-
-		// wmd.bb = phi2(wmd.bb, wmd.cc, wmd.dd, wmd.aa, wmd.m[15], shift[round][st%4])
-		// wmd.b[8] = wmd.bb
-		// st++
-		// if ok := wmd.applyTransform(st); ok {
-		// 	goto START
-		// }
-		m2 := wmd.getM2()
 		msg1 := pack(wmd.m)
+		m2 := wmd.getM2()
 		msg2 := pack(m2)
 
 		md := md4.New()
@@ -540,7 +337,7 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte) {
 			continue
 		}
 
-		return msg1, msg2
+		return msg1, msg2, nil
 	}
 }
 
@@ -549,11 +346,8 @@ func (wmd *WangMD4) getM2() [16]uint32 {
 
 	m2[1] = m2[1] + ob(32)
 
-	m2[2] = m2[2] + ob(32)
-
-	m2[2] = m2[2] - ob(29)
+	m2[2] = m2[2] + ob(32) - ob(29)
 
 	m2[12] = m2[12] - ob(17)
-
 	return m2
 }

@@ -10,7 +10,10 @@ import (
 
 func TestGenCollision(t *testing.T) {
 	w := &WangMD4{}
-	x1, x2 := w.GenCollision()
+	x1, x2, err := w.GenCollision()
+	if err != nil {
+		t.Fatalf("didn't expect to timeout")
+	}
 
 	md := md4.New()
 	md.Write(x1)
@@ -19,10 +22,10 @@ func TestGenCollision(t *testing.T) {
 	md.Write(x2)
 	h2 := md.Sum(nil)
 	md.Reset()
-	if !bytes.Equal(h1, h2) {
-		t.Fatalf("failed")
-	}
 
+	if !bytes.Equal(h1, h2) {
+		t.Fatalf("didn't expect to fail")
+	}
 }
 
 func TestPacking(t *testing.T) {
