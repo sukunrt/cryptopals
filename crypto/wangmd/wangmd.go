@@ -195,14 +195,6 @@ func pack(m [16]uint32) []byte {
 
 var shift = [][4]uint32{{3, 7, 11, 19}, {3, 5, 9, 11}}
 
-func Reverse(s string) string {
-	runes := []rune(s)
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-	return string(runes)
-}
-
 func (wmd *WangMD4) GenCollision() ([]byte, []byte, error) {
 	cnt := 0
 	m1 := make([]byte, 512/8)
