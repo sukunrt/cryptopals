@@ -13,11 +13,9 @@ import (
 var rotL = bits.RotateLeft32
 
 type WangMD4 struct {
-	m              [16]uint32
-	a, b, c, d     [16]uint32
-	aa, bb, cc, dd uint32
-	temp           uint32
-	st             int
+	m          [16]uint32
+	a, b, c, d [16]uint32
+	st         int
 }
 
 func pb(x uint32, y int) uint32 {
@@ -39,7 +37,7 @@ func (wmd *WangMD4) applyTransform(st int) bool {
 			tf := func(x int) {
 				om := wmd.m[0]
 				wmd.m[0] = om + (ob(x - 3))
-				v := phi2(wmd.temp, wmd.bb, wmd.cc, wmd.dd, wmd.m[0], shift[1][0])
+				v := phi2(wmd.a[4], wmd.b[4], wmd.c[4], wmd.d[4], wmd.m[0], shift[1][0])
 				if pb(wmd.a[5], x) == pb(v, x) {
 					wmd.m[0] = om - (ob(x - 3))
 				}
@@ -77,7 +75,7 @@ func (wmd *WangMD4) applyTransform(st int) bool {
 			tf := func(x int) {
 				om := wmd.m[4]
 				wmd.m[4] = om + (ob(x - 5))
-				v := phi2(wmd.temp, wmd.aa, wmd.bb, wmd.cc, wmd.m[4], shift[1][1])
+				v := phi2(wmd.d[4], wmd.a[5], wmd.b[4], wmd.c[4], wmd.m[4], shift[1][1])
 				if pb(wmd.d[5], x) == pb(v, x) {
 					wmd.m[4] = om - (ob(x - 5))
 				}
@@ -241,7 +239,6 @@ func (wmd *WangMD4) GenCollision() ([]byte, []byte, error) {
 			goto START
 		}
 
-		wmd.temp = wmd.dd
 		wmd.d[5] = phi2(wmd.d[4], wmd.a[5], wmd.b[4], wmd.c[4], wmd.m[4], shift[1][1])
 		wmd.st++
 		if ok := wmd.applyTransform(wmd.st); ok {
