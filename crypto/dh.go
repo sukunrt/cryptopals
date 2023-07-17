@@ -94,3 +94,90 @@ func SRPServer(password []byte) (bi.Int, bi.Int, bi.Int, func(inputCh, outputCh 
 		}
 	}
 }
+
+type DHGroup struct {
+	P bi.Int
+	G bi.Int
+	O bi.Int
+}
+
+func DHSmallSubgroup(p bi.Int, o bi.Int, mx int) chan DHGroup {
+	resCh := make(chan DHGroup)
+	go func() {
+		p1 := p.Sub(bi.One)
+		j := p1.Div(o)
+		for r := bi.Two; r.Int() < mx; r = r.Add(bi.One) {
+			if j.Mod(r).Equal(bi.Zero) && !j.Div(r).Mod(r).Equal(bi.Zero) {
+				double := false
+				for x := bi.Two; x.Mul(x).Cmp(r) <= 0; x = x.Add(bi.One) {
+					if r.Mod(x).Equal(bi.Zero) && r.Div(x).Mod(x).Equal(bi.Zero) {
+						double = true
+						break
+					}
+				}
+				if double {
+					continue
+				}
+				m := p1.Div(r)
+				// We want h such that h^r = 1 => h ^ m != 1
+				for {
+					h := bi.RandInt(p1.Sub(bi.Two)).Add(bi.One)
+					h = bi.Exp(h, m, p)
+					if !h.Equal(bi.One) && !h.Equal(bi.Zero) {
+						resCh <- DHGroup{P: p, G: h, O: r}
+						break
+					}
+				}
+			}
+		}
+		close(resCh)
+	}()
+	return resCh
+}
+
+type HandshakeMsg struct {
+	Msg string
+	Mac []byte
+}
+
+func DHSmallSubgroupAttack(p bi.Int, g bi.Int, o bi.Int, handshake func(bi.Int) HandshakeMsg) bi.Int {
+	var rs []bi.Int
+	var ks []bi.Int // y = k mod r
+	rp := bi.One
+	hash := sha256.New()
+OUTER:
+	for g := range DHSmallSubgroup(p, o, 1<<24) {
+		for _, r := range rs {
+			if !gcd(r, g.O).Equal(bi.One) {
+				continue OUTER
+			}
+		}
+		hm := handshake(g.G)
+		found := false
+		for i := bi.Zero; i.Cmp(g.O) < 0; i = i.Add(bi.One) {
+			k := bi.Exp(g.G, i, p)
+			b := append(k.Bytes(), []byte(hm.Msg)...)
+			hash.Reset()
+			_, err := hash.Write(b)
+			if err != nil {
+				panic(err)
+			}
+			mac := hash.Sum(nil)
+			if bytes.Equal(mac, hm.Mac) {
+				found = true
+				rs = append(rs, g.O)
+				ks = append(ks, i)
+				rp = rp.Mul(g.O)
+				if rp.Cmp(o) > 0 {
+					break OUTER
+				}
+				break
+			}
+		}
+		if !found {
+			panic("failed")
+		}
+	}
+	y := CRT(ks, rs)
+	return y.Mod(p)
+}
