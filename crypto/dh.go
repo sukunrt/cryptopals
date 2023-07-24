@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"crypto/sha256"
+	"fmt"
 
 	bi "github.com/sukunrt/bigint"
 	"github.com/sukunrt/cryptopals/utils"
@@ -138,9 +139,10 @@ func DHSmallSubgroup(p bi.Int, o bi.Int, mx int) chan DHGroup {
 type HandshakeMsg struct {
 	Msg string
 	Mac []byte
+	PK  bi.Int
 }
 
-func DHSmallSubgroupAttack(p bi.Int, g bi.Int, o bi.Int, handshake func(bi.Int) HandshakeMsg) bi.Int {
+func DHSmallSubgroupAttack(p bi.Int, g bi.Int, o bi.Int, handshake func(bi.Int) HandshakeMsg) (bi.Int, bi.Int) {
 	var rs []bi.Int
 	var ks []bi.Int // y = k mod r
 	rp := bi.One
@@ -178,6 +180,64 @@ OUTER:
 			panic("failed")
 		}
 	}
+	fmt.Println(rp, o)
 	y := CRT(ks, rs)
-	return y.Mod(p)
+	return y.Mod(p), rp
+}
+
+func DHSmallSubgroupWithPollardKangarooAttack(p bi.Int, g bi.Int, o bi.Int, handshake func(bi.Int) HandshakeMsg) bi.Int {
+	var rs []bi.Int
+	var ks []bi.Int // y = k mod r
+	rp := bi.One
+	hash := sha256.New()
+	var Y bi.Int
+OUTER:
+	for g := range DHSmallSubgroup(p, o, 1<<20) {
+		for _, r := range rs {
+			if !gcd(r, g.O).Equal(bi.One) {
+				continue OUTER
+			}
+		}
+		hm := handshake(g.G)
+		Y = hm.PK
+		found := false
+		for i := bi.Zero; i.Cmp(g.O) < 0; i = i.Add(bi.One) {
+			k := bi.Exp(g.G, i, p)
+			b := append(k.Bytes(), []byte(hm.Msg)...)
+			hash.Reset()
+			_, err := hash.Write(b)
+			if err != nil {
+				panic(err)
+			}
+			mac := hash.Sum(nil)
+			if bytes.Equal(mac, hm.Mac) {
+				found = true
+				rs = append(rs, g.O)
+				ks = append(ks, i)
+				rp = rp.Mul(g.O)
+				if o.Div(rp).Cmp(bi.FromInt(1<<36)) <= 0 {
+					fmt.Println(rp, o)
+					break OUTER
+				}
+				break
+			}
+		}
+		if !found {
+			panic("failed")
+		}
+	}
+	k := CRT(ks, rs)
+	// g ^ y = k + m*rp
+	yy := Y.Mul(bi.Exp(g, p.Sub(bi.One).Sub(k), p)).Mod(p)
+	gg := bi.Exp(g, rp, p)
+	yt := bi.Zero
+	if !yy.Equal(bi.One) {
+		var err error
+		fmt.Println(yy, o.Div(rp))
+		yt, err = PollardKangarooDiscreteLog(yy, bi.Zero, o.Div(rp).Add(bi.Ten), gg, p)
+		if err != nil {
+			panic(err)
+		}
+	}
+	return k.Add(yt.Mul(rp)).Mod(o)
 }

@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"errors"
+	"fmt"
 	"math/rand"
 
 	bi "github.com/sukunrt/bigint"
@@ -123,4 +125,48 @@ outer:
 
 func MillerRabin(n bi.Int) bool {
 	return MillerRabinRounds(n, 5)
+}
+
+// PollardKangarooDiscreteLog finds y such that g^y = target mod p and a <= y <= b
+func PollardKangarooDiscreteLog(target, a, b, g, p bi.Int) (bi.Int, error) {
+	tries := 5
+	for i := 0; i < tries; i++ {
+		fmt.Println(i)
+		cache := make(map[string]bi.Int)
+		rv := func(y, k, m bi.Int) bi.Int {
+			s := fmt.Sprintf("%s|%s", y.Mod(k), m)
+			if v, ok := cache[s]; ok {
+				return v
+			}
+			ii := bi.FromInt(i)
+			cache[s] = (bi.Exp(bi.Two, y.Mod(k), m).Add(ii)).Mod(m).Add(bi.One)
+			return cache[s]
+		}
+		jump := b.Sub(a).Sqrt()
+		magic := jump.Mul(bi.FromInt((i + 1) * (i + 1)))
+		N := jump.Mul(bi.FromInt(4))
+		y := bi.Exp(g, b, p)
+		x := bi.Zero
+		fmt.Println(N)
+		for i := bi.Zero; i.Cmp(N) < 0; i = i.Add(bi.One) {
+			j := rv(y, magic, jump)
+			x = x.Add(j)
+			y = y.Mul(bi.Exp(g, j, p)).Mod(p)
+		}
+		ty := target
+		tx := bi.Zero
+		fmt.Println(N)
+		for {
+			j := rv(ty, magic, jump)
+			if tx.Add(j).Cmp(b.Sub(a).Add(x)) > 0 || ty.Equal(y) {
+				break
+			}
+			tx = tx.Add(j)
+			ty = ty.Mul(bi.Exp(g, j, p)).Mod(p)
+		}
+		if ty.Equal(y) {
+			return b.Add(x).Sub(tx).Mod(p.Sub(bi.One)), nil
+		}
+	}
+	return bi.Zero, errors.New("pollard kangaroo failed")
 }
